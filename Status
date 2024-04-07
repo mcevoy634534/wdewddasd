@@ -1,0 +1,3781 @@
+local repo = 'https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/'
+
+--Library Features
+local Library = loadstring(game:HttpGet(repo .. 'Library.lua'))()
+local ThemeManager = loadstring(game:HttpGet(repo .. 'addons/ThemeManager.lua'))()
+local SaveManager = loadstring(game:HttpGet(repo .. 'addons/SaveManager.lua'))()
+
+--ESP
+local esp, esp_renderstep, framework = loadstring(game:HttpGet("https://raw.githubusercontent.com/denis90qagtiewg/newesp/main/espnew3"))()
+
+--Services
+local dwCamera = workspace.CurrentCamera
+local dwRunService = game:GetService("RunService")
+local dwUIS = game:GetService("UserInputService")
+local dwRepStorage = game:GetService("ReplicatedStorage")
+local dwEntities = game:GetService("Players")
+local dwLocalPlayer = dwEntities.LocalPlayer
+local dwCharacter = dwLocalPlayer.Character or dwLocalPlayer.CharacterAdded:Wait()
+local dwMouse = dwLocalPlayer:GetMouse()
+local dwTweenService = game:GetService("TweenService")
+local dwRS = game:GetService("RunService")
+local dwContextActionService = game:GetService("ContextActionService")
+local dwStarterGui = game:GetService("StarterGui")
+local dwCoreGui = game:GetService("CoreGui")
+local lighting = game:GetService("Lighting")
+
+local dwSettings = UserSettings()
+local dwGameSettings = dwSettings.GameSettings
+
+--PD
+local FPSModule = require(dwRepStorage.Modules.FPS)
+local UniversalTables = require(dwRepStorage.Modules:WaitForChild("UniversalTables"))
+
+for _, player in pairs(dwEntities:GetPlayers()) do
+	if player == dwEntities.LocalPlayer then continue; end;
+	esp:Player(player)
+end;
+dwEntities.PlayerAdded:Connect(function(player)
+	esp:Player(player)
+end)
+dwEntities.PlayerAdded:Connect(function(player)
+	local obj = esp:GetObject(player)
+	if obj then
+		obj:Destroy()
+	end
+end)
+
+esp.Settings.Enabled = false
+esp.Settings.Objects_Enabled = true
+esp.Settings.Maximal_Distance = 5000
+esp.Settings.Object_Maximal_Distance = 5000
+
+local settings = {
+	Aimbot = false,
+	AiAimbot = false,
+	Aiming = false,
+	SilentAim = false,
+	AutoShoot = false,
+	Prediction = false,
+	Snaplines = false,
+	LockedTo = "",
+	AiLockedTo = false,
+	NoRecoil = false,
+	NoSpread = false,
+	NoTracer = false,
+	InstantBullet = false,
+	HitMarkers = false,
+	HitMarkerDuration = 0.5,
+	HitMarkerColor = Color3.new(1, 1, 1),
+	BulletLines = false,
+	BulletLineDelay = 0.5,
+	BulletLineColor = Color3.new(1, 1, 1),
+	SnaplineColor = Color3.new(1, 1, 1),
+	FullBright = false,
+	HitSounds = false,
+	Aimbot_AimPart = "Head",
+	Aimbot_TeamCheck = false,
+	Aimbot_Draw_FOV = false,
+	Aimbot_FOV_Radius = 90,
+	Aimbot_FOV_Color = Color3.fromRGB(255,255,255),
+	Aimbot_FOV_Thickness = 1,
+	Aimbot_FOV_Filled = false,
+	Aimbot_FOV_Transparency = 0.5,
+	Aimbot_VisiblityCheck = false,
+	Aimbot_Sensitivity = 0,
+	Aimbot_MaxDistance = 2500,
+	AiEsp = false,
+	AiEspColor = Color3.new(1,1,1),
+	Lighting = {
+		AmbientColorToggle = false,
+		AmbientColor = Color3.fromRGB(255, 255, 255),
+	},
+	Player = {
+		AntiDrown = false,
+		AntiVisor = false,
+		NoFoliage = false,
+		HipHeightEnabled = false,
+		HipHeight = 2,
+		WalkSpeedEnabled = false,
+		WalkSpeed = 16,
+		Bhop = false,
+		WaterWalk = false,
+		ZoomValue = 15,
+		Old_FOV = dwCamera.FieldOfView,
+		Chosen_FOV = 90,
+		FOVToggle = false,
+		NoBob = false,
+		ThirdPerson = false,
+		ThirdPersonDistance = 4,
+		CFrameSpin = false,
+		CFrameSpinSpeed = 1,
+
+	},
+	Crosshair = {
+		Enabled = false,
+		Rainbow = false,
+		Nazi = false,
+		Color = Color3.fromRGB(255, 255, 255),
+		Speed = 5,
+		Radius = 15,
+		Thickness = 2,
+		Gap = 3,
+		TheGap = false,
+		Outline = false,
+		Resize = false,
+		Dot = false,
+		Logo = false,
+		LogoColor = Color3.fromRGB(255, 255, 255),
+		LogoFadingOffset = 0.5,
+	},
+	InventoryViewer = {	
+		Enabled = false,
+		UpdateRate = 0.5,
+		InventoryToScan = nil,
+		TextColor1 = Color3.new(1, 1, 1),
+		TextColor2 = Color3.new(1, 1, 1),
+		TextColorRuble = Color3.new(0, 1, 0),
+		TextColorHeader = Color3.new(1, 1, 1),
+	},
+	LocalChams = {
+		Enabled = false,
+		Material = "ForceField",
+		Color = Color3.new(1,1,1),
+		GunChamsMaterial = "ForceField",
+		GunChamsColor = Color3.new(1,1,1),
+	},
+}
+
+local objectConnections = {
+	ZoomCon = nil,
+}
+local ServiceConnections = {
+	AiZonesRemovedConnection = nil, 
+	AiZonesAddedConnection = nil, 
+}
+local Running = true
+
+Old_Gravity = workspace.Gravity
+Old_Lighting = {
+	Ambient = lighting.Ambient,
+	Brightness = lighting.Brightness,
+	ColorShift_Bottom = lighting.ColorShift_Bottom,
+	ColorShift_Top = lighting.ColorShift_Top,
+	EnvironmentDiffuseScale = lighting.EnvironmentDiffuseScale,
+	EnvironmentSpecularScale = lighting.EnvironmentSpecularScale,
+	GlobalShadows = lighting.GlobalShadows,
+	OutdoorAmbient = lighting.OutdoorAmbient,
+	ClockTime = lighting.ClockTime,
+	TimeOfDay = lighting.TimeOfDay,
+	ExposureCompensation = lighting.ExposureCompensation
+}
+
+local hitSounds = {
+	Neverlose = "rbxassetid://8726881116",
+	Gamesense = "rbxassetid://4817809188",
+	Rust = "rbxassetid://1255040462",
+	["Among Us"] = "rbxassetid://5700183626",
+	["CS:GO"] = "rbxassetid://6937353691",
+	["Call of Duty"] = "rbxassetid://5952120301",
+	Click = "rbxassetid://8053704437",
+	Steve = "rbxassetid://4965083997",
+}
+local ShouldPlayHitSound
+local HitSoundHitTarget
+local bodySound = Instance.new("Sound", dwCoreGui)
+bodySound.Volume = 10
+local headSound = Instance.new("Sound", dwCoreGui)
+headSound.Volume = 10
+
+local allSounds = {}
+allSounds[1] = "Standard"
+for i, v in pairs(hitSounds) do
+	allSounds[#allSounds + 1] = i
+end
+
+local Sky = lighting:FindFirstChildOfClass("Sky")
+if not Sky then
+	Sky = Instance.new("Sky", lighting)
+end
+local SkyBoxes = {
+	["Standard"] = {
+		["SkyboxBk"] = Sky.SkyboxBk,
+		["SkyboxDn"] = Sky.SkyboxDn,
+		["SkyboxFt"] = Sky.SkyboxFt,
+		["SkyboxLf"] = Sky.SkyboxLf,
+		["SkyboxRt"] = Sky.SkyboxRt,
+		["SkyboxUp"] = Sky.SkyboxUp,
+	},
+	["Among Us"] = {
+		["SkyboxBk"] = "rbxassetid://5752463190",
+		["SkyboxDn"] = "rbxassetid://5752463190",
+		["SkyboxFt"] = "rbxassetid://5752463190",
+		["SkyboxLf"] = "rbxassetid://5752463190",
+		["SkyboxRt"] = "rbxassetid://5752463190",
+		["SkyboxUp"] = "rbxassetid://5752463190"
+	},
+	["Neptune"] = {
+		["SkyboxBk"] = "rbxassetid://218955819",
+		["SkyboxDn"] = "rbxassetid://218953419",
+		["SkyboxFt"] = "rbxassetid://218954524",
+		["SkyboxLf"] = "rbxassetid://218958493",
+		["SkyboxRt"] = "rbxassetid://218957134",
+		["SkyboxUp"] = "rbxassetid://218950090"
+	},
+	["Aesthetic Night"] = {
+		["SkyboxBk"] = "rbxassetid://1045964490",
+		["SkyboxDn"] = "rbxassetid://1045964368",
+		["SkyboxFt"] = "rbxassetid://1045964655",
+		["SkyboxLf"] = "rbxassetid://1045964655",
+		["SkyboxRt"] = "rbxassetid://1045964655",
+		["SkyboxUp"] = "rbxassetid://1045962969"
+	},
+	["Redshift"] = {
+		["SkyboxBk"] = "rbxassetid://401664839",
+		["SkyboxDn"] = "rbxassetid://401664862",
+		["SkyboxFt"] = "rbxassetid://401664960",
+		["SkyboxLf"] = "rbxassetid://401664881",
+		["SkyboxRt"] = "rbxassetid://401664901",
+		["SkyboxUp"] = "rbxassetid://401664936"
+	},
+	["Galaxy"] = {
+		["SkyboxBk"] = "rbxassetid://10623658813",
+		["SkyboxDn"] = "rbxassetid://10623658813",
+		["SkyboxFt"] = "rbxassetid://10623658813",
+		["SkyboxLf"] = "rbxassetid://10623658813",
+		["SkyboxRt"] = "rbxassetid://10623658813",
+		["SkyboxUp"] = "rbxassetid://10623658813"
+	},
+	["Dark Clouds"] = {
+		["SkyboxBk"] = "rbxassetid://48020371",
+		["SkyboxDn"] = "rbxassetid://48020144",
+		["SkyboxFt"] = "rbxassetid://48020234",
+		["SkyboxLf"] = "rbxassetid://48020211",
+		["SkyboxRt"] = "rbxassetid://48020254",
+		["SkyboxUp"] = "rbxassetid://48020383"
+	},
+	["Space"] = {
+		["SkyboxBk"] = "rbxassetid://166509999",
+		["SkyboxDn"] = "rbxassetid://166510057",
+		["SkyboxFt"] = "rbxassetid://166510116",
+		["SkyboxLf"] = "rbxassetid://166510092",
+		["SkyboxRt"] = "rbxassetid://166510131",
+		["SkyboxUp"] = "rbxassetid://166510114"
+	},
+}
+
+local fovcircle = Drawing.new("Circle")
+fovcircle.Visible = settings.Aimbot_Draw_FOV
+fovcircle.Radius = settings.Aimbot_FOV_Radius
+fovcircle.Color = settings.Aimbot_FOV_Color
+fovcircle.Thickness = settings.Aimbot_FOV_Thickness
+fovcircle.Filled = settings.Aimbot_FOV_Filled
+fovcircle.Transparency = settings.Aimbot_FOV_Transparency
+fovcircle.Position = Vector2.new(dwCamera.ViewportSize.X / 2, dwCamera.ViewportSize.Y / 2)
+
+local SnapLine = Drawing.new("Line")
+SnapLine.Visible = false
+
+local Window = Library:CreateWindow({
+	Title = 'boron.cc || Paid || Welcome '..dwLocalPlayer.Name.."!",
+	Center = true,
+	AutoShow = true,
+	TabPadding = 8
+})
+
+local Tabs = {
+	Combat = Window:AddTab('Combat'),
+	Visuals = Window:AddTab('Visuals'),
+	Misc = Window:AddTab('Misc'),
+	Credits = Window:AddTab('Credits'),
+	['UI Settings'] = Window:AddTab('UI Settings'),
+}
+
+-- Math Funcs
+local pi = math.pi
+local abs = math.abs
+local clamp = math.clamp
+local exp = math.exp
+local rad = math.rad
+local sign = math.sign
+local sqrt = math.sqrt
+local tan = math.tan
+
+-- Freecam
+game.Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+	local newCamera = game.Workspace.CurrentCamera
+	if newCamera then
+		dwCamera = newCamera
+	end
+end)
+
+local FFlagUserExitFreecamBreaksWithShiftlock
+do
+	local success, result = pcall(function()
+		return UserSettings():IsUserFeatureEnabled("UserExitFreecamBreaksWithShiftlock")
+	end)
+	FFlagUserExitFreecamBreaksWithShiftlock = success and result
+end
+
+local FFlagUserFixFreecamFocusFlicker 
+do
+	local success, result = pcall(function()
+		return UserSettings():IsUserFeatureEnabled("UserFixFreecamFocusFlicker")
+	end)
+	FFlagUserFixFreecamFocusFlicker = success and result
+end
+
+local Spring = {} do
+	Spring.__index = Spring
+
+	function Spring.new(freq, pos)
+		local self = setmetatable({}, Spring)
+		self.f = freq
+		self.p = pos
+		self.v = pos*0
+		return self
+	end
+
+	function Spring:Update(dt, goal)
+		local f = self.f*2*pi
+		local p0 = self.p
+		local v0 = self.v
+
+		local offset = goal - p0
+		local decay = exp(-f*dt)
+
+		local p1 = goal + (v0*dt - offset*(f*dt + 1))*decay
+		local v1 = (f*dt*(offset*f - v0) + v0)*decay
+
+		self.p = p1
+		self.v = v1
+
+		return p1
+	end
+
+	function Spring:Reset(pos)
+		self.p = pos
+		self.v = pos*0
+	end
+end
+
+local TOGGLE_INPUT_PRIORITY = Enum.ContextActionPriority.Low.Value
+local INPUT_PRIORITY = Enum.ContextActionPriority.High.Value
+local FREECAM_MACRO_KB = {Enum.KeyCode.LeftShift, Enum.KeyCode.P}
+
+local NAV_GAIN = Vector3.new(1, 1, 1)*64
+local PAN_GAIN = Vector2.new(0.75, 1)*8
+local FOV_GAIN = 300
+
+local PITCH_LIMIT = rad(90)
+
+local VEL_STIFFNESS = 1.5
+local PAN_STIFFNESS = 1.0
+local FOV_STIFFNESS = 4.0
+
+local cameraPos = Vector3.new()
+local cameraRot = Vector2.new()
+local cameraFov = 0
+
+local velSpring = Spring.new(VEL_STIFFNESS, Vector3.new())
+local panSpring = Spring.new(PAN_STIFFNESS, Vector2.new())
+local fovSpring = Spring.new(FOV_STIFFNESS, 0)
+
+local Input = {} do
+	local thumbstickCurve do
+		local K_CURVATURE = 2.0
+		local K_DEADZONE = 0.15
+
+		local function fCurve(x)
+			return (exp(K_CURVATURE*x) - 1)/(exp(K_CURVATURE) - 1)
+		end
+
+		local function fDeadzone(x)
+			return fCurve((x - K_DEADZONE)/(1 - K_DEADZONE))
+		end
+
+		function thumbstickCurve(x)
+			return sign(x)*clamp(fDeadzone(abs(x)), 0, 1)
+		end
+	end
+
+	local gamepad = {
+		ButtonX = 0,
+		ButtonY = 0,
+		DPadDown = 0,
+		DPadUp = 0,
+		ButtonL2 = 0,
+		ButtonR2 = 0,
+		Thumbstick1 = Vector2.new(),
+		Thumbstick2 = Vector2.new(),
+	}
+
+	local keyboard = {
+		W = 0,
+		A = 0,
+		S = 0,
+		D = 0,
+		E = 0,
+		Q = 0,
+		U = 0,
+		H = 0,
+		J = 0,
+		K = 0,
+		I = 0,
+		Y = 0,
+		Up = 0,
+		Down = 0,
+		LeftShift = 0,
+		RightShift = 0,
+	}
+
+	local mouse = {
+		Delta = Vector2.new(),
+		MouseWheel = 0,
+	}
+
+	local NAV_GAMEPAD_SPEED  = Vector3.new(1, 1, 1)
+	local NAV_KEYBOARD_SPEED = Vector3.new(1, 1, 1)
+	local PAN_MOUSE_SPEED    = Vector2.new(1, 1)*(pi/64)
+	local PAN_GAMEPAD_SPEED  = Vector2.new(1, 1)*(pi/8)
+	local FOV_WHEEL_SPEED    = 1.0
+	local FOV_GAMEPAD_SPEED  = 0.25
+	local NAV_ADJ_SPEED      = 0.75
+	local NAV_SHIFT_MUL      = 0.25
+
+	local navSpeed = 1
+
+	function Input.Vel(dt)
+		navSpeed = clamp(navSpeed + dt*(keyboard.Up - keyboard.Down)*NAV_ADJ_SPEED, 0.01, 4)
+
+		local kGamepad = Vector3.new(
+			thumbstickCurve(gamepad.Thumbstick1.X),
+			thumbstickCurve(gamepad.ButtonR2) - thumbstickCurve(gamepad.ButtonL2),
+			thumbstickCurve(-gamepad.Thumbstick1.Y)
+		)*NAV_GAMEPAD_SPEED
+
+		local kKeyboard = Vector3.new(
+			keyboard.D - keyboard.A + keyboard.K - keyboard.H,
+			keyboard.E - keyboard.Q + keyboard.I - keyboard.Y,
+			keyboard.S - keyboard.W + keyboard.J - keyboard.U
+		)*NAV_KEYBOARD_SPEED
+
+		local shift = dwUIS:IsKeyDown(Enum.KeyCode.LeftShift) or dwUIS:IsKeyDown(Enum.KeyCode.RightShift)
+
+		return (kGamepad + kKeyboard)*(navSpeed*(shift and NAV_SHIFT_MUL or 1))
+	end
+
+	function Input.Pan(dt)
+		local kGamepad = Vector2.new(
+			thumbstickCurve(gamepad.Thumbstick2.Y),
+			thumbstickCurve(-gamepad.Thumbstick2.X)
+		)*PAN_GAMEPAD_SPEED
+		local kMouse = mouse.Delta*PAN_MOUSE_SPEED
+		mouse.Delta = Vector2.new()
+		return kGamepad + kMouse
+	end
+
+	function Input.Fov(dt)
+		local kGamepad = (gamepad.ButtonX - gamepad.ButtonY)*FOV_GAMEPAD_SPEED
+		local kMouse = mouse.MouseWheel*FOV_WHEEL_SPEED
+		mouse.MouseWheel = 0
+		return kGamepad + kMouse
+	end
+
+	do
+		local function Keypress(action, state, input)
+			keyboard[input.KeyCode.Name] = state == Enum.UserInputState.Begin and 1 or 0
+			return Enum.ContextActionResult.Sink
+		end
+
+		local function GpButton(action, state, input)
+			gamepad[input.KeyCode.Name] = state == Enum.UserInputState.Begin and 1 or 0
+			return Enum.ContextActionResult.Sink
+		end
+
+		local function MousePan(action, state, input)
+			local delta = input.Delta
+			mouse.Delta = Vector2.new(-delta.y, -delta.x)
+			return Enum.ContextActionResult.Sink
+		end
+
+		local function Thumb(action, state, input)
+			gamepad[input.KeyCode.Name] = input.Position
+			return Enum.ContextActionResult.Sink
+		end
+
+		local function Trigger(action, state, input)
+			gamepad[input.KeyCode.Name] = input.Position.z
+			return Enum.ContextActionResult.Sink
+		end
+
+		local function MouseWheel(action, state, input)
+			mouse[input.UserInputType.Name] = -input.Position.z
+			return Enum.ContextActionResult.Sink
+		end
+
+		local function Zero(t)
+			for k, v in pairs(t) do
+				t[k] = v*0
+			end
+		end
+
+		function Input.StartCapture()
+			dwContextActionService:BindActionAtPriority("FreecamKeyboard", Keypress, false, INPUT_PRIORITY,
+				Enum.KeyCode.W, Enum.KeyCode.U,
+				Enum.KeyCode.A, Enum.KeyCode.H,
+				Enum.KeyCode.S, Enum.KeyCode.J,
+				Enum.KeyCode.D, Enum.KeyCode.K,
+				Enum.KeyCode.E, Enum.KeyCode.I,
+				Enum.KeyCode.Q, Enum.KeyCode.Y,
+				Enum.KeyCode.Up, Enum.KeyCode.Down
+			)
+			dwContextActionService:BindActionAtPriority("FreecamMousePan",          MousePan,   false, INPUT_PRIORITY, Enum.UserInputType.MouseMovement)
+			dwContextActionService:BindActionAtPriority("FreecamMouseWheel",        MouseWheel, false, INPUT_PRIORITY, Enum.UserInputType.MouseWheel)
+			dwContextActionService:BindActionAtPriority("FreecamGamepadButton",     GpButton,   false, INPUT_PRIORITY, Enum.KeyCode.ButtonX, Enum.KeyCode.ButtonY)
+			dwContextActionService:BindActionAtPriority("FreecamGamepadTrigger",    Trigger,    false, INPUT_PRIORITY, Enum.KeyCode.ButtonR2, Enum.KeyCode.ButtonL2)
+			dwContextActionService:BindActionAtPriority("FreecamGamepadThumbstick", Thumb,      false, INPUT_PRIORITY, Enum.KeyCode.Thumbstick1, Enum.KeyCode.Thumbstick2)
+		end
+
+		function Input.StopCapture()
+			navSpeed = 1
+			Zero(gamepad)
+			Zero(keyboard)
+			Zero(mouse)
+			dwContextActionService:UnbindAction("FreecamKeyboard")
+			dwContextActionService:UnbindAction("FreecamMousePan")
+			dwContextActionService:UnbindAction("FreecamMouseWheel")
+			dwContextActionService:UnbindAction("FreecamGamepadButton")
+			dwContextActionService:UnbindAction("FreecamGamepadTrigger")
+			dwContextActionService:UnbindAction("FreecamGamepadThumbstick")
+		end
+	end
+end
+
+local function GetFocusDistance(cameraFrame)
+	local znear = 0.1
+	local viewport = dwCamera.ViewportSize
+	local projy = 2*tan(cameraFov/2)
+	local projx = viewport.x/viewport.y*projy
+	local fx = cameraFrame.rightVector
+	local fy = cameraFrame.upVector
+	local fz = cameraFrame.lookVector
+
+	local minVect = Vector3.new()
+	local minDist = 512
+
+	for x = 0, 1, 0.5 do
+		for y = 0, 1, 0.5 do
+			local cx = (x - 0.5)*projx
+			local cy = (y - 0.5)*projy
+			local offset = fx*cx - fy*cy + fz
+			local origin = cameraFrame.p + offset*znear
+			local _, hit = game.Workspace:FindPartOnRay(Ray.new(origin, offset.unit*minDist))
+			local dist = (hit - origin).magnitude
+			if minDist > dist then
+				minDist = dist
+				minVect = offset.unit
+			end
+		end
+	end
+
+	return fz:Dot(minVect)*minDist
+end
+
+local function CheckMouseLockAvailability()
+	local devAllowsMouseLock = dwEntities.LocalPlayer.DevEnableMouseLock
+	local devMovementModeIsScriptable = dwEntities.LocalPlayer.DevComputerMovementMode == Enum.DevComputerMovementMode.Scriptable
+	local userHasMouseLockModeEnabled = dwGameSettings.ControlMode == Enum.ControlMode.MouseLockSwitch
+	local userHasClickToMoveEnabled =  dwGameSettings.ComputerMovementMode == Enum.ComputerMovementMode.ClickToMove
+	local MouseLockAvailable = devAllowsMouseLock and userHasMouseLockModeEnabled and not userHasClickToMoveEnabled and not devMovementModeIsScriptable
+
+	return MouseLockAvailable
+end
+
+local function StepFreecam(dt)
+	local vel = velSpring:Update(dt, Input.Vel(dt))
+	local pan = panSpring:Update(dt, Input.Pan(dt))
+
+	local zoomFactor = math.sqrt(math.tan(math.rad(70/2))/math.tan(math.rad(cameraFov/2)))
+
+	cameraRot = cameraRot + pan*Vector2.new(0.75, 1)*8*(dt/zoomFactor)
+	cameraRot = Vector2.new(math.clamp(cameraRot.x, -math.rad(90), math.rad(90)), cameraRot.y%(2*math.pi))
+
+	local cameraCFrame = CFrame.new(cameraPos)*CFrame.fromOrientation(cameraRot.x, cameraRot.y, 0)*CFrame.new(vel*Vector3.new(1, 1, 1)*64*dt)
+	cameraPos = cameraCFrame.p
+
+	dwCamera.CFrame = cameraCFrame
+	dwCamera.Focus = cameraCFrame*CFrame.new(0, 0, -GetFocusDistance(cameraCFrame))
+	dwCamera.FieldOfView = cameraFov
+end
+
+local PlayerState = {} do
+	local mouseBehavior
+	local mouseIconEnabled
+	local cameraType
+	local cameraFocus
+	local cameraCFrame
+	local cameraFieldOfView
+	local screenGuis = {}
+	local coreGuis = {
+		Backpack = true,
+		Chat = true,
+		Health = true,
+		PlayerList = true,
+	}
+	local setCores = {
+		BadgesNotificationsActive = true,
+		PointsNotificationsActive = true,
+	}
+
+	-- Save state and set up for freecam
+	function PlayerState.Push()
+		for name in pairs(coreGuis) do
+			coreGuis[name] = dwStarterGui:GetCoreGuiEnabled(Enum.CoreGuiType[name])
+			dwStarterGui:SetCoreGuiEnabled(Enum.CoreGuiType[name], false)
+		end
+		for name in pairs(setCores) do
+			setCores[name] = dwStarterGui:GetCore(name)
+			dwStarterGui:SetCore(name, false)
+		end
+		local playergui = dwLocalPlayer:FindFirstChildOfClass("PlayerGui")
+		if playergui then
+			for _, gui in pairs(playergui:GetChildren()) do
+				if gui:IsA("ScreenGui") and gui.Enabled then
+					screenGuis[#screenGuis + 1] = gui
+					gui.Enabled = false
+				end
+			end
+		end
+
+		cameraFieldOfView = dwCamera.FieldOfView
+		dwCamera.FieldOfView = 70
+
+		cameraType = dwCamera.CameraType
+		dwCamera.CameraType = Enum.CameraType.Custom
+
+		cameraCFrame = dwCamera.CFrame
+		cameraFocus = dwCamera.Focus
+
+		mouseIconEnabled = dwUIS.MouseIconEnabled
+		dwUIS.MouseIconEnabled = false
+
+		if FFlagUserExitFreecamBreaksWithShiftlock and CheckMouseLockAvailability() then
+			mouseBehavior = Enum.MouseBehavior.Default
+		else
+			mouseBehavior = dwUIS.MouseBehavior
+		end
+		dwUIS.MouseBehavior = Enum.MouseBehavior.Default
+	end
+
+	-- Restore state
+	function PlayerState.Pop()
+		for name, isEnabled in pairs(coreGuis) do
+			dwStarterGui:SetCoreGuiEnabled(Enum.CoreGuiType[name], isEnabled)
+		end
+		for name, isEnabled in pairs(setCores) do
+			dwStarterGui:SetCore(name, isEnabled)
+		end
+		for _, gui in pairs(screenGuis) do
+			if gui.Parent then
+				gui.Enabled = true
+			end
+		end
+
+		dwCamera.FieldOfView = cameraFieldOfView
+		cameraFieldOfView = nil
+
+		dwCamera.CameraType = cameraType
+		cameraType = nil
+
+		dwCamera.CFrame = cameraCFrame
+		cameraCFrame = nil
+
+		dwCamera.Focus = cameraFocus
+		cameraFocus = nil
+
+		dwUIS.MouseIconEnabled = mouseIconEnabled
+		mouseIconEnabled = nil
+
+		dwUIS.MouseBehavior = mouseBehavior
+		mouseBehavior = nil
+	end
+end
+
+local function StartFreecam()
+	local cameraCFrame = dwCamera.CFrame
+	cameraRot = Vector2.new(cameraCFrame:toEulerAnglesYXZ())
+	cameraPos = cameraCFrame.p
+	cameraFov = dwCamera.FieldOfView
+
+	velSpring:Reset(Vector3.new())
+	panSpring:Reset(Vector2.new())
+	fovSpring:Reset(0)
+
+	PlayerState.Push()
+	dwRS:BindToRenderStep("Freecam", Enum.RenderPriority.Camera.Value, StepFreecam)
+	Input.StartCapture()
+end
+
+local function StopFreecam()
+	Input.StopCapture()
+	dwRS:UnbindFromRenderStep("Freecam")
+	PlayerState.Pop()
+end
+
+-- Aimbot/Misc Functions
+do
+	function IsPartVisible(part, partancestor)
+		local campos = dwCamera.CFrame.Position
+
+		local vector, onscreen = dwCamera:WorldToViewportPoint(part.Position)
+
+		if onscreen then
+			local rayparams = RaycastParams.new()
+			rayparams.FilterType = Enum.RaycastFilterType.Exclude
+			rayparams.FilterDescendantsInstances = {dwCamera, dwCharacter}
+
+			local ray = Ray.new(campos, part.Position - campos)
+			local result = workspace:FindPartOnRayWithIgnoreList(ray, {dwCamera, dwCharacter})
+
+			if result == part then
+				return true
+			end
+		end
+
+		return false
+	end
+
+	GetClosestPlayer = function()
+		if dwCharacter.Humanoid.Health > 0 then
+			local ClosestPlayer = nil
+			local RequiredDistanceFOV = nil
+			local RequiredDistancePlayer = settings.Aimbot_MaxDistance or math.huge
+			local WallBangPossible = false
+
+			settings.AiLockedTo = false
+
+			if settings.Aimbot_Draw_FOV then
+				RequiredDistanceFOV = settings.Aimbot_FOV_Radius
+			else
+				RequiredDistanceFOV = dwCamera.ViewportSize.X / 2
+			end
+
+			if settings.AiAimbot then
+				local AiZones = workspace:FindFirstChild("AiZones")
+				for _, Zone in pairs(AiZones:GetChildren()) do
+					for _, Item in pairs(Zone:GetChildren()) do
+						if Item:FindFirstChild("HumanoidRootPart") then
+							if Item.Humanoid.Health <= 0 then continue end
+							if settings.Aimbot_VisiblityCheck and not IsPartVisible(Item[settings.Aimbot_AimPart], Item) then continue end
+
+							local Vector, OnScreen = dwCamera:WorldToViewportPoint(Item.HumanoidRootPart.Position)
+							local DistanceFromMouse = (Vector2.new(dwUIS:GetMouseLocation().X, dwUIS:GetMouseLocation().Y) - Vector2.new(Vector.X, Vector.Y)).Magnitude
+							local DistanceFromPlayer = (dwCharacter.HumanoidRootPart.Position - Item.HumanoidRootPart.Position).Magnitude
+
+							if OnScreen then
+								if DistanceFromMouse <= RequiredDistanceFOV then
+									if DistanceFromPlayer <= RequiredDistancePlayer then
+										RequiredDistancePlayer = DistanceFromPlayer
+										ClosestPlayer = Item
+										settings.AiLockedTo = true
+									end
+								end
+							end
+						end
+					end
+				end
+			end
+
+			for _, v in next, dwEntities:GetPlayers() do
+				if v ~= dwLocalPlayer then
+					if settings.Aimbot_TeamCheck then 
+						if dwLocalPlayer:GetFriendStatus(v) ~= Enum.FriendStatus.Friend then
+							local HumanoidRootPart = v.Character and v.Character:FindFirstChild("HumanoidRootPart")
+							if v.Character and HumanoidRootPart then
+								local PlayerYPos = math.floor(HumanoidRootPart.Position.Y)
+								if PlayerYPos ~= -362 then
+									local dwHumanoid = v.Character:FindFirstChild("Humanoid")
+									if dwHumanoid and v.Character.Humanoid.Health <= 0 then continue end
+									if settings.Aimbot_VisiblityCheck and not IsPartVisible(v.Character[settings.Aimbot_AimPart], v.Character) then continue end
+
+									local Vector, OnScreen = dwCamera:WorldToViewportPoint(v.Character[settings.Aimbot_AimPart].Position)
+									local DistanceFromMouse = (Vector2.new(dwUIS:GetMouseLocation().X, dwUIS:GetMouseLocation().Y) - Vector2.new(Vector.X, Vector.Y)).Magnitude
+									local DistanceFromPlayer = (dwCharacter.HumanoidRootPart.Position - v.Character.HumanoidRootPart.Position).Magnitude
+
+									if OnScreen then
+										if DistanceFromMouse <= RequiredDistanceFOV then
+											if DistanceFromPlayer <= RequiredDistancePlayer then
+												RequiredDistancePlayer = DistanceFromPlayer
+												ClosestPlayer = v
+												settings.AiLockedTo = false
+											end
+										end
+									end
+								end
+							end
+						end
+					else
+						local HumanoidRootPart = v.Character and v.Character:FindFirstChild("HumanoidRootPart")
+						if v.Character and HumanoidRootPart then
+							local PlayerYPos = math.floor(HumanoidRootPart.Position.Y)
+							if PlayerYPos ~= -362 then
+								local dwHumanoid = v.Character:FindFirstChild("Humanoid")
+								if dwHumanoid and v.Character.Humanoid.Health <= 0 then continue end
+								if settings.Aimbot_VisiblityCheck and not IsPartVisible(v.Character[settings.Aimbot_AimPart], v.Character) then continue end
+
+								local Vector, OnScreen = dwCamera:WorldToViewportPoint(v.Character[settings.Aimbot_AimPart].Position)
+								local DistanceFromMouse = (Vector2.new(dwUIS:GetMouseLocation().X, dwUIS:GetMouseLocation().Y) - Vector2.new(Vector.X, Vector.Y)).Magnitude
+								local DistanceFromPlayer = (dwCharacter.HumanoidRootPart.Position - v.Character.HumanoidRootPart.Position).Magnitude
+								if OnScreen then
+									if DistanceFromMouse <= RequiredDistanceFOV then
+										if DistanceFromPlayer <= RequiredDistancePlayer then
+											RequiredDistancePlayer = DistanceFromPlayer
+											ClosestPlayer = v
+											settings.AiLockedTo = false
+										end
+									end
+								end
+							end
+						end
+					end
+				end
+			end
+
+			settings.LockedTo = ClosestPlayer
+		end
+	end
+
+	PredictCFrame = function(Player, AimPart, Prediction, ProjectileSpeed)
+		if settings.Prediction then
+			local PlayerRoot = Player:FindFirstChild("HumanoidRootPart")
+			local PlayersVelocity = PlayerRoot.Velocity
+			PlayersVelocity = Vector3.new(PlayersVelocity.X, 0, PlayersVelocity.Z)    
+			PlayerRoot.AssemblyLinearVelocity = Vector3.new(PlayersVelocity.X, 0, PlayersVelocity.Z)
+
+			local Drag = 0.013
+			local TargetStuds = (AimPart - dwCamera.CFrame.p).Magnitude
+			local TimeToTarget = TargetStuds / ProjectileSpeed
+
+			Prediction = PlayersVelocity * TimeToTarget
+		end
+
+		return Prediction
+	end
+
+	function predictDrop(targetPart, projectileSpeed, projectileDrop)
+		local distance = (dwCamera.CFrame.p - targetPart.CFrame.p).Magnitude
+		local timeToHit = (distance / projectileSpeed)
+
+		local finalProjectileSpeed = projectileSpeed - 0.013 * projectileSpeed ^ 2 * timeToHit ^ 2
+		timeToHit += (distance / finalProjectileSpeed)
+
+		local drop_timing = projectileDrop * timeToHit ^ 2
+
+		if not tostring(drop_timing):find("nan") then
+			return drop_timing
+		end
+		return 0
+	end
+
+	function getBulletAttribute(attribute)
+		local attribute_value = nil
+		local status = game.ReplicatedStorage.Players[dwLocalPlayer.Name]:FindFirstChild("Status")
+		if status then
+			local equipped_tool = status.GameplayVariables.EquippedTool.Value
+			if equipped_tool then
+				local inventory_equipped_tool = game.ReplicatedStorage.Players[dwLocalPlayer.Name].Inventory:FindFirstChild(tostring(equipped_tool))
+				if inventory_equipped_tool then
+					local mag = inventory_equipped_tool.Attachments:FindFirstChild("Magazine") and inventory_equipped_tool.Attachments:FindFirstChild("Magazine"):FindFirstChildOfClass("StringValue") and inventory_equipped_tool.Attachments:FindFirstChild("Magazine"):FindFirstChildOfClass("StringValue"):FindFirstChild("ItemProperties").LoadedAmmo or inventory_equipped_tool.ItemProperties:FindFirstChild("LoadedAmmo")
+					if mag then
+						local first_bullet_type = mag:FindFirstChild("1")
+						if first_bullet_type then
+							attribute_value = game.ReplicatedStorage.AmmoTypes[first_bullet_type:GetAttribute("AmmoType")]:GetAttribute(attribute)
+						end
+					end
+				end
+			end
+		end
+		return attribute_value
+	end
+
+	game.Workspace.AiZones.ChildAdded:Connect(function()
+		for i, v in game.Workspace.AiZones:GetDescendants() do
+			if v:FindFirstChild("Humanoid") then
+				local aiChr = v.Parent
+
+				esp:Object(aiChr, {
+					Type = "Bandit",
+					Color = Color3.new(1,1,1)
+				})
+			end
+		end
+	end)
+
+	function fovUpdate()
+		fovcircle.Position = Vector2.new(dwUIS:GetMouseLocation().X, dwUIS:GetMouseLocation().Y)
+	end
+
+	spawn(function()
+		while true do
+			wait()
+			fovUpdate()
+		end
+	end)
+end
+
+-- Combat Tab
+
+-- Aimbot Box
+do 
+	local Aimbot = Tabs["Combat"]:AddLeftGroupbox('Aimbot')
+
+	Aimbot:AddToggle('Aimbot', {
+		Text = 'Aimbot',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on aimbot.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.Aimbot = true
+			else
+				settings.Aimbot = false
+			end
+		end
+	})
+
+	Aimbot:AddToggle('SilentAim', {
+		Text = 'Silent Aimbot',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on silent aimbot.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.SilentAim = true
+			else
+				settings.SilentAim = false
+			end
+		end
+	})
+
+	Aimbot:AddToggle('AimbotAI', {
+		Text = 'Ai Aimbot',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on AI aimbot.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.AiAimbot = true
+			else
+				settings.AiAimbot = false
+			end
+		end
+	})
+
+	Aimbot:AddToggle('AutoShootTog', {
+		Text = 'Auto Shoot',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on Auto Shoot.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.AutoShoot = true
+			else
+				settings.AutoShoot = false
+			end
+		end
+	})
+
+	Aimbot:AddToggle('FriendCheck', {
+		Text = 'Friend Check',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on friend check.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.Aimbot_TeamCheck = true
+			else
+				settings.Aimbot_TeamCheck = false
+			end
+		end
+	})
+
+	Aimbot:AddToggle('VisibleCheck', {
+		Text = 'Visible Check',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on visibility check.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.Aimbot_VisiblityCheck = true
+			else
+				settings.Aimbot_VisiblityCheck = false
+			end
+		end
+	})
+
+	Aimbot:AddToggle('Prediction', {
+		Text = 'Prediction',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on prediction.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.Prediction = true
+			else
+				settings.Prediction = false
+			end
+		end
+	})
+
+	Aimbot:AddSlider('SensSlider', {
+		Text = 'Sensitivity Slider',
+		Default = 0,
+		Min = 0,
+		Max = 1,
+		Rounding = 1,
+		Compact = false,
+
+		Callback = function(Value)
+			settings.Aimbot_Sensitivity = Value
+		end
+	})
+
+	Aimbot:AddSlider('DisSlider', {
+		Text = 'Max Distance',
+		Default = 2500,
+		Min = 100,
+		Max = 5000,
+		Rounding = 1,
+		Compact = false,
+
+		Callback = function(Value)
+			settings.Aimbot_MaxDistance = Value
+		end
+	})
+
+	Aimbot:AddDropdown('AimPart', {
+		Values = { 'Head', 'Torso' },
+		Default = 1, -- number index of the value / string
+		Multi = false, -- true / false, allows multiple choices to be selected
+
+		Text = 'Aim Part',
+		Tooltip = 'Shows the part the aimbot will aim to.', -- Information shown when you hover over the dropdown
+
+		Callback = function(Value)
+			if Value == "Head" then
+				settings.Aimbot_AimPart = "Head"
+			elseif Value == "Torso" then
+				settings.Aimbot_AimPart = "HumanoidRootPart"
+			end
+		end
+	})
+end
+
+-- Combat Misc
+do
+	local CombatMisc = Tabs["Combat"]:AddRightGroupbox('Misc')
+
+	local hitmarkerToggle = CombatMisc:AddToggle('Hitmarkers', {
+		Text = 'Hitmarkers',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on hitmarkers.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.HitMarkers = true
+			else
+				settings.HitMarkers = false
+			end
+		end
+	})
+
+	hitmarkerToggle:AddColorPicker('ColorPicker', {
+		Default = Color3.new(1, 1, 1), -- Bright green
+		Transparency = nil, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+
+		Callback = function(Value)
+			settings.HitMarkerColor = Value
+		end
+	})
+
+	local bulletLinesToggle = CombatMisc:AddToggle('Bulletlines', {
+		Text = 'Bulletlines',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on bulletlines.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.BulletLines = true
+			else
+				settings.BulletLines = false
+			end
+		end
+	})
+
+	bulletLinesToggle:AddColorPicker('ColorPicker', {
+		Default = Color3.new(1, 1, 1), -- Bright green
+		Transparency = nil, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+
+		Callback = function(Value)
+			settings.BulletLineColor = Value
+		end
+	})
+
+	local hitSoundsToggle = CombatMisc:AddToggle('HitsoundsTog', {
+		Text = 'Hit Sounds',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on Hit Sounds.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				game:GetService("ReplicatedStorage").SFX.Hits.HitMarkers.Helmet.Volume = 0
+				game:GetService("ReplicatedStorage").SFX.Hits.HitMarkers.BodyArmor.Volume = 0
+				game:GetService("ReplicatedStorage").SFX.Hits.HitMarkers.Bodyshot.Volume = 0
+				game:GetService("ReplicatedStorage").SFX.Hits.HitMarkers.Headshot.Volume = 0
+
+				game:GetService("ReplicatedStorage").SFX.Hits.ProjectileHits.Default.Hit.Volume = 0
+				game:GetService("ReplicatedStorage").SFX.Hits.ProjectileHits.Blood.Hit.Volume = 0
+
+				settings.HitSounds = true
+			else
+				game:GetService("ReplicatedStorage").SFX.Hits.HitMarkers.Helmet.Volume = 7
+				game:GetService("ReplicatedStorage").SFX.Hits.HitMarkers.BodyArmor.Volume = 7
+				game:GetService("ReplicatedStorage").SFX.Hits.HitMarkers.Bodyshot.Volume = 7
+				game:GetService("ReplicatedStorage").SFX.Hits.HitMarkers.Headshot.Volume = 7
+
+				game:GetService("ReplicatedStorage").SFX.Hits.ProjectileHits.Default.Hit.Volume = 1
+				game:GetService("ReplicatedStorage").SFX.Hits.ProjectileHits.Blood.Hit.Volume = 1
+
+				settings.HitSounds = false
+			end
+		end
+	})
+
+	CombatMisc:AddSlider('HitmarkersSlider', {
+		Text = 'Hitmarker Duration',
+		Default = 0.5,
+		Min = 0,
+		Max = 2,
+		Rounding = 1,
+		Compact = false,
+
+		Callback = function(Value)
+			settings.HitMarkerDuration = Value
+		end
+	})
+
+	CombatMisc:AddSlider('BulletLinesSlider', {
+		Text = 'Bulletlines Duration',
+		Default = 0.5,
+		Min = 0,
+		Max = 2,
+		Rounding = 1,
+		Compact = false,
+
+		Callback = function(Value)
+			settings.BulletLineDelay = Value
+		end
+	})
+
+	CombatMisc:AddSlider('HeadshotSoundValue', {
+		Text = 'Headshot Sound Volume',
+		Default = 0.5,
+		Min = 0,
+		Max = 10,
+		Rounding = 1,
+		Compact = false,
+
+		Callback = function(Value)
+			headSound.Volume = Value
+			if not headSound.IsPlaying then
+				headSound:Play()
+			end
+		end
+	})
+
+	CombatMisc:AddSlider('BodyshotSoundValue', {
+		Text = 'Bodyshot Sound Volume',
+		Default = 0.5,
+		Min = 0,
+		Max = 10,
+		Rounding = 1,
+		Compact = false,
+
+		Callback = function(Value)
+			bodySound.Volume = Value
+			if not bodySound.IsPlaying then
+				bodySound:Play()
+			end
+		end
+	})
+
+	CombatMisc:AddDropdown('HeadshotSound', {
+		Values = allSounds,
+		Default = allSounds[1], -- number index of the value / string
+		Multi = false, -- true / false, allows multiple choices to be selected
+
+		Text = 'Headshot Sound',
+		Tooltip = '...', -- Information shown when you hover over the dropdown
+
+		Callback = function(Value)
+			local standardHitsound = Value == "Standard"
+			if standardHitsound then
+				headSound.SoundId = ""
+			else
+				headSound.SoundId = hitSounds[Value]
+			end
+			if not headSound.IsPlaying then
+				headSound:Play()
+			end
+		end
+	})
+
+	CombatMisc:AddDropdown('BodyshotSound', {
+		Values = allSounds,
+		Default = allSounds[1], -- number index of the value / string
+		Multi = false, -- true / false, allows multiple choices to be selected
+
+		Text = 'Bodyshot Sound',
+		Tooltip = '...', -- Information shown when you hover over the dropdown
+
+		Callback = function(Value)
+			local standardHitsound = Value == "Standard"
+			if standardHitsound then
+				bodySound.SoundId = ""
+			else
+				bodySound.SoundId = hitSounds[Value]
+			end
+			if not bodySound.IsPlaying then
+				bodySound:Play()
+			end
+		end
+	})
+end
+
+-- FOV Box
+do
+	local FOV = Tabs["Combat"]:AddLeftGroupbox('FOV')
+
+	FOV:AddToggle('FOVTog', {
+		Text = 'FOV',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on the FOV circle.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.Aimbot_Draw_FOV = true
+				fovcircle.Visible = true
+			else
+				settings.Aimbot_Draw_FOV = false
+				fovcircle.Visible = false
+			end
+		end
+	})
+
+	local SnapLine = FOV:AddToggle('SnaplinesTog', {
+		Text = 'Snaplines',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on snaplines.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			settings.Snaplines = v
+		end
+	})
+
+	SnapLine:AddColorPicker('ColorPicker', {
+		Default = Color3.new(1, 1, 1), -- Bright green
+		Transparency = nil, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+
+		Callback = function(Value)
+			settings.SnaplineColor = Value
+		end
+	})
+
+	FOV:AddSlider('FOVRadius', {
+		Text = 'Radius',
+		Default = 90,
+		Min = 10,
+		Max = 180,
+		Rounding = 1,
+		Compact = false,
+
+		Callback = function(Value)
+			settings.Aimbot_FOV_Radius = Value
+			fovcircle.Radius = Value
+		end
+	})
+
+	FOV:AddSlider('FOVThickness', {
+		Text = 'Thickness',
+		Default = 1,
+		Min = 1,
+		Max = 3,
+		Rounding = 1,
+		Compact = false,
+
+		Callback = function(Value)
+			settings.Aimbot_FOV_Thickness = Value
+			fovcircle.Thickness = Value
+		end
+	})
+
+	FOV:AddSlider('FOVTransparency', {
+		Text = 'Transparency',
+		Default = 0.5,
+		Min = 0.1,
+		Max = 1,
+		Rounding = 1,
+		Compact = false,
+
+		Callback = function(Value)
+			settings.Aimbot_FOV_Transparency = Value
+			fovcircle.Transparency = Value
+		end
+	})
+
+	FOV:AddLabel('FOV Color'):AddColorPicker('ColorPicker', {
+		Default = Color3.new(1, 1, 1), -- Bright green
+		Transparency = nil, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+
+		Callback = function(Value)
+			settings.Aimbot_FOV_Color = Value
+			fovcircle.Color = Value
+		end
+	})
+end
+
+
+-- Mods Box
+do
+	local Mods = Tabs["Combat"]:AddRightGroupbox('Mods')
+
+	Mods:AddToggle('RecoilTog', {
+		Text = 'No Recoil',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on No Recoil.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.NoRecoil = true
+			else
+				settings.NoRecoil = false
+			end
+		end
+	})
+
+	Mods:AddToggle('NoSpreadTog', {
+		Text = 'No Spread',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns off Spread.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.NoSpread = true
+			else
+				settings.NoSpread = false
+			end
+		end
+	})
+	
+	Mods:AddToggle('InstantBullet', {
+		Text = 'Instant Bullet',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on Instant Bullet.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.InstantBullet = true
+			else
+				settings.InstantBullet = false
+			end
+		end
+	})
+
+	Mods:AddToggle('NoTracerTog', {
+		Text = 'No Tracers',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns off Tracers.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.NoTracer = true
+			else
+				settings.NoTracer = false
+			end
+		end
+	})
+	
+	local rapidfireEnabledd = false
+	local firerates = {}
+	Mods:AddToggle('RapidFire', {
+		Text = 'Fire Rate',
+		Default = false, -- Default value (true / false)
+		Tooltip = '...', -- Information shown when you hover over the toggle
+
+		Callback = function(bool)
+			if bool and not rapidfireEnabledd then
+				rapidfireEnabledd = true
+				for i,v in next, dwRepStorage.Players[dwLocalPlayer.Name].Inventory:GetChildren() do
+					local module = require(v.SettingsModule)
+
+					firerates[v.Name] = module.FireRate
+					module.FireRate = 0.001
+					module.FireModes = { "Semi", "Auto" }
+					module.FireMode = 'Auto'
+				end
+			end
+
+			if not bool and rapidfireEnabledd then
+				for i,v in next, dwRepStorage.Players[dwLocalPlayer.Name].Inventory:GetChildren() do
+					local module = require(v.SettingsModule)
+
+					module.FireRate = firerates[v.Name]
+					module.FireModes = { "Semi", "Auto" }
+					module.FireMode = 'Semi'
+				end
+			end
+		end
+	})
+
+	local OldWeaponMods_QuickAim = {}
+	Mods:AddToggle('QuickAim', {
+		Text = 'Quick Aim',
+		Default = false, -- Default value (true / false)
+		Tooltip = '...', -- Information shown when you hover over the toggle
+
+		Callback = function(bool)
+			if bool then
+				OldWeaponMods_QuickAim = {}
+				for i,v in next, dwRepStorage.Players[dwLocalPlayer.Name].Inventory:GetChildren() do
+					local module = require(v.SettingsModule)
+
+					table.insert(OldWeaponMods_QuickAim, module.AimInSpeed)
+					table.insert(OldWeaponMods_QuickAim, module.AimOutSpeed)
+
+					module.AimInSpeed = 0
+					module.AimOutSpeed = 0
+				end
+			else
+				for i,v in next, dwRepStorage.Players[dwLocalPlayer.Name].Inventory:GetChildren() do
+					local module = require(v.SettingsModule)
+
+					for i2,v2 in next, OldWeaponMods_QuickAim do
+						module.AimInSpeed = v2
+						module.AimOutSpeed = v2
+					end
+				end
+			end
+		end
+	})
+end
+
+-- Visual Tab
+
+-- Player ESP
+do
+	local ESPP = Tabs["Visuals"]:AddLeftGroupbox('Player ESP')
+
+	ESPP:AddToggle('ESP', {
+		Text = 'ESP',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on ESP.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				esp.Settings.Enabled = true
+			else
+				esp.Settings.Enabled = false
+			end
+		end
+	})
+
+	local BoldText = ESPP:AddToggle('BoldText', {
+		Text = 'Bold Text',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on Bold Text.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				esp.Settings.Bold_Text = true
+			else
+				esp.Settings.Bold_Text = false
+			end
+		end
+	})
+
+	local VisibleCheckESP = ESPP:AddToggle('VisibleCheckTogESP', {
+		Text = 'Visible Check',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on Visible Check.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			esp.Settings.Improved_Visible_Check = v
+		end
+	})
+
+	local NamesTog = ESPP:AddToggle('Names', {
+		Text = 'Names',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on name ESP.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				esp.Settings.Name.Enabled = true
+			else
+				esp.Settings.Name.Enabled = false
+			end
+		end
+	})
+
+	local DistanceTog = ESPP:AddToggle('Distance', {
+		Text = 'Distance',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on distance ESP.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				esp.Settings.Distance.Enabled = true
+			else
+				esp.Settings.Distance.Enabled = false
+			end
+		end
+	})
+
+	local BoxesTog = ESPP:AddToggle('Boxes', {
+		Text = 'Boxes',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on box ESP.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				esp.Settings.Box.Enabled = true
+				esp.Settings.Box_Outline.Enabled = true
+			else
+				esp.Settings.Box.Enabled = false
+				esp.Settings.Box_Outline.Enabled = true
+			end
+		end
+	})
+
+	local ToolTog = ESPP:AddToggle('ToolTog', {
+		Text = 'Tool',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on Tool ESP.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				esp.Settings.Tool.Enabled = true
+			else
+				esp.Settings.Tool.Enabled = false
+			end
+		end
+	})
+
+	local TracerTog = ESPP:AddToggle('TracerTog', {
+		Text = 'Tracers',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on Tracer ESP.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				esp.Settings.Tracer.Enabled = true
+			else
+				esp.Settings.Tracer.Enabled = false
+			end
+		end
+	})
+
+	local HealthBarTog = ESPP:AddToggle('HealthBarTog', {
+		Text = 'Health Bar',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on Health Bar ESP.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				esp.Settings.Healthbar.Enabled = true
+			else
+				esp.Settings.Healthbar.Enabled = false
+			end
+		end
+	})
+
+	local HealthTog = ESPP:AddToggle('Health', {
+		Text = 'Health',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on health ESP.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				esp.Settings.Health.Enabled = true
+			else
+				esp.Settings.Health.Enabled = false
+			end
+		end
+	})
+
+	VisibleCheckESP:AddColorPicker('ColorPicker', {
+		Default = Color3.new(1, 0, 0), -- Bright green
+		Transparency = nil, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+
+		Callback = function(Value)
+			esp.Settings.VisibleCheckColor = Value
+		end
+	})
+
+	NamesTog:AddColorPicker('ColorPicker', {
+		Default = Color3.new(1, 1, 1), -- Bright green
+		Transparency = nil, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+
+		Callback = function(Value)
+			esp.Settings.Name.Color = Value
+		end
+	})
+
+	DistanceTog:AddColorPicker('ColorPicker', {
+		Default = Color3.new(1, 1, 1), -- Bright green
+		Transparency = nil, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+
+		Callback = function(Value)
+			esp.Settings.Distance.Color = Value
+		end
+	})
+
+	BoxesTog:AddColorPicker('ColorPicker', {
+		Default = Color3.new(1, 1, 1), -- Bright green
+		Transparency = nil, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+
+		Callback = function(Value)
+			esp.Settings.Box.Color = Value
+			esp.Settings.Box_Outline.Color = Value
+		end
+	})
+
+	TracerTog:AddColorPicker('ColorPicker', {
+		Default = Color3.new(1, 1, 1), -- Bright green
+		Transparency = nil, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+
+		Callback = function(Value)
+			esp.Settings.Tracer.Color = Value
+		end
+	})
+
+	ToolTog:AddColorPicker('ColorPicker', {
+		Default = Color3.new(1, 1, 1), -- Bright green
+		Transparency = nil, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+
+		Callback = function(Value)
+			esp.Settings.Tool.Color = Value
+		end
+	})
+end
+
+-- AI ESP
+do
+	local AiZones = workspace:FindFirstChild("AiZones")
+	if AiZones then
+		for _, Zone in pairs(AiZones:GetChildren()) do
+			ServiceConnections.AiZonesAddedConnection = Zone.ChildAdded:Connect(function(Child)
+				if Running then
+					if Child:IsA("Model") then
+						if settings.AiEsp then
+							if Child.PrimaryPart then
+								esp:Object(Child, {
+									Type = "Bandit",
+									Color = settings.AiEspColor
+								})
+							end
+						end
+						if objectConnections[Child] == nil then
+							objectConnections[Child] = Child:GetPropertyChangedSignal("PrimaryPart"):Connect(function()
+								if Running then
+									if Child.PrimaryPart == nil then
+										local Object = esp:GetObject(Child)
+										if Object then
+											Object:Destroy()
+										end
+									elseif settings.AiEsp then
+										esp:Object(Child, {
+											Type = "Bandit",
+											Color = settings.AiEspColor
+										})
+									end
+								end
+							end)
+						end
+					end
+				end
+			end)
+			ServiceConnections.AiZonesRemovedConnection = Zone.ChildRemoved:Connect(function(Child)
+				if Running then
+					if Child:IsA("Model") then
+						local Object = esp:GetObject(Child)
+						if Object then
+							Object:Destroy()
+						end
+					end
+				end
+			end)
+		end
+
+		local ESPAi = Tabs["Visuals"]:AddRightGroupbox('Ai ESP')
+
+		local aiespTog = ESPAi:AddToggle('AiEsp', {
+			Text = 'Ai ESP',
+			Default = false, -- Default value (true / false)
+			Tooltip = 'Turns on Ai ESP.', -- Information shown when you hover over the toggle
+
+			Callback = function(bool)
+				if bool == true then
+					settings.AiEsp = true
+					for _, Zone in pairs(AiZones:GetChildren()) do
+						for _, Item in pairs(Zone:GetChildren()) do
+							if Item.Name ~= "PMN2" then
+								esp:Object(Item, {
+									Type = "Bandit",
+									Color = settings.AiEspColor
+								})
+							end
+							if objectConnections[Item] == nil then
+								objectConnections[Item] = Item:GetPropertyChangedSignal("PrimaryPart"):Connect(function()
+									if Running then
+										if Item.PrimaryPart == nil then
+											local Object = esp:GetObject(Item)
+											if Object then
+												Object:Destroy()
+											end
+										elseif settings.AiEsp then
+											if Item.Name ~= "PMN2" then
+												esp:Object(Item, {
+													Type = "Bandit",
+													Color = settings.AiEspColor
+												})
+											end
+										end
+									end
+								end)
+							end
+						end
+					end
+				else
+					settings.AiEsp = false
+					for _, Object in pairs(esp.Objects) do
+						if Object.Type == "Bandit" then
+							Object:Destroy()
+						end
+					end
+				end
+			end
+		})
+
+		aiespTog:AddColorPicker('ColorPicker', {
+			Default = Color3.new(1, 1, 1), -- Bright green
+			Transparency = nil, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+
+			Callback = function(Value)
+				settings.AiEspColor = Value
+				for _, Object in pairs(esp.Objects) do
+					if Object.Type == "Bandit" then
+						for _, Drawing in pairs(Object.Components) do
+							Drawing.Color = Value
+						end
+					end
+				end
+			end
+		})
+
+		local NamesTog = ESPAi:AddToggle('NamesAi', {
+			Text = 'Names',
+			Default = false, -- Default value (true / false)
+			Tooltip = 'Turns on name ESP.', -- Information shown when you hover over the toggle
+
+			Callback = function(v)
+				if v == true then
+					esp.SettingsAi.Name.Enabled = true
+				else
+					esp.SettingsAi.Name.Enabled = false
+				end
+			end
+		})
+
+		local DistanceTog = ESPAi:AddToggle('DistanceAi', {
+			Text = 'Distance',
+			Default = false, -- Default value (true / false)
+			Tooltip = 'Turns on name ESP.', -- Information shown when you hover over the toggle
+
+			Callback = function(v)
+				if v == true then
+					esp.SettingsAi.Distance.Enabled = true
+				else
+					esp.SettingsAi.Distance.Enabled = false
+				end
+			end
+		})
+
+		local HealthTog = ESPAi:AddToggle('HealthAi', {
+			Text = 'Health',
+			Default = false, -- Default value (true / false)
+			Tooltip = 'Turns on name ESP.', -- Information shown when you hover over the toggle
+
+			Callback = function(v)
+				if v == true then
+					esp.SettingsAi.Health.Enabled = true
+				else
+					esp.SettingsAi.Health.Enabled = false
+				end
+			end
+		})
+	end
+end
+
+local InventoryViewer = {
+	Size = Vector2.new(300, 14), 
+
+	Main = framework:Draw("Square", {Thickness = 0, Size = Vector2.new(300, 14), Filled = true, Position = Vector2.new(100, 100), Color = Color3.new(0.356863, 0.356863, 0.356863), Visible = false, Transparency = 0.5}),
+	Border = framework:Draw("Square", {Thickness = 2, Size = Vector2.new(301, 15), Filled = false, Position = Vector2.new(100, 100), Color = Color3.new(0.356863, 0.356863, 0.356863), Visible = false, Transparency = 0.5}),
+
+	Texts = {}
+}
+-- Inventory Viewer
+do
+	function InventoryViewer:Clear()
+		for i, v in pairs(self.Texts) do
+			v:Remove()
+			self.Texts[i] = nil
+			self.Main.Size = self.Size
+		end
+	end
+
+	function InventoryViewer:AddText(Text, Tabulated, Main_Text)
+		local Main = self.Main
+		local Border = self.Border
+		local Drawing = framework:Draw("Text", {Text = Text, Color = settings.InventoryViewer.TextColor1, Transparency = 1, Size = 13, Font = 2, Outline = true, Visible = true})
+		table.insert(self.Texts, Drawing)
+
+		local Drawings = #self.Texts
+		Main.Size = Vector2.new(self.Size.X, 14 * Drawings)
+		Border.Size = Main.Size + Vector2.new(1, 1)
+		Drawing.Position = Main.Position + Vector2.new(5, (Drawings - 1) * 14)
+		if Main_Text then
+			Drawing.Color = settings.InventoryViewer.TextColorHeader
+			Drawing.Center = true
+			Drawing.Position = Main.Position + Vector2.new(Main.Size.X / 2, 3)
+		end
+		if Tabulated then
+			Drawing.Position = Main.Position + Vector2.new(20, (Drawings - 1) * 14)
+		end
+		return Drawing
+	end
+
+	function InventoryViewer:Update()
+		if not settings.InventoryViewer.Enabled then return end
+		InventoryViewer.Main.Visible = true
+		InventoryViewer.Border.Visible = true
+		self.Size = Vector2.new(300, 14)
+		local DroppedItems = workspace:FindFirstChild("DroppedItems")
+		local Scan, Containers, _Players, _DeadBodys = {}, false, true, false
+		if Containers then
+			for i, v in pairs(workspace.Containers:GetChildren()) do
+				if v:IsA("Model") and v:FindFirstChild("Inventory") then
+					table.insert(Scan, v)
+				end
+			end
+		end
+		if _Players then
+			for i, v in pairs(dwEntities:GetPlayers()) do
+				if v ~= dwLocalPlayer and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Character:FindFirstChildOfClass("Humanoid") then
+					table.insert(Scan, v.Character)
+				end
+			end
+		end
+		if _DeadBodys then
+			for i, v in pairs(workspace.DroppedItems:GetChildren()) do
+				if v:IsA("Model") and v:FindFirstChild("Inventory") then
+					table.insert(Scan, v)
+				end
+			end
+		end
+		local DroppedItemsEnabled2 = false
+		local Target, lowMagnitude = nil, dwCamera.ViewportSize.X / 2
+		for i, v in pairs(Scan) do
+			local PrimaryPart = v.PrimaryPart
+			if PrimaryPart then
+				local Vector, onScreen = dwCamera:WorldToViewportPoint(PrimaryPart.Position)
+				if onScreen then
+					local Magnitude = (dwCamera.ViewportSize / 2 - framework:V3_To_V2(Vector)).Magnitude
+					if Magnitude <= lowMagnitude then
+						lowMagnitude = Magnitude
+						Target = v
+					end
+				end
+			end
+		end
+		if not Target then
+			InventoryViewer.Main.Visible = false
+			InventoryViewer.Border.Visible = false
+			self:Clear()
+			wait(settings.InventoryViewer.UpdateRate)
+			return
+		end
+		local MainText = nil
+		local Humanoid = Target:FindFirstChildOfClass("Humanoid")
+		self:Clear()
+		local TotalRubleValue = 0
+		if dwRepStorage.Players:FindFirstChild(Target.Name) and Humanoid.Health > 0 then
+			MainText = self:AddText(Target.Name, false, true)
+		else
+			MainText = self:AddText(Target.Name .. " Dead Body", false, true)
+		end
+		self:AddText("", false, false)
+		Scan = {}
+		local Maximal_X = 0
+		if Humanoid then
+			local Folder = dwRepStorage.Players:FindFirstChild(Target.Name)
+			if Folder then
+				table.insert(Scan, Folder.Inventory)
+				table.insert(Scan, Folder.Clothing)
+				DroppedItemsEnabled2 = false
+			else
+				local Folder = workspace.DroppedItems:FindFirstChild(Target.Name)
+				if Folder then
+					table.insert(Scan, Folder.Inventory)
+					table.insert(Scan, Folder.Clothing)
+					DroppedItemsEnabled2 = true
+				end
+			end
+			for i, v in pairs(Scan) do
+				local Name = v.Name
+				if Name == "Inventory" then
+					for _, Item in pairs(v:GetChildren()) do
+						local ItemProperties = Item:FindFirstChild("ItemProperties")
+						if ItemProperties then
+							local ammoString = ""
+							local isGun = false
+							local ItemType = ItemProperties:GetAttribute("ItemType")
+							if ItemType and ItemType == "RangedWeapon" then
+								isGun = true
+								local Attachments = Item:FindFirstChild("Attachments")
+								if Attachments then
+									local Magazine = Attachments:FindFirstChild("Magazine")
+									if Magazine then
+										Magazine = Magazine:FindFirstChildOfClass("StringValue")
+										if Magazine then
+											local MagazineProperties = Magazine:FindFirstChild("ItemProperties")
+											if MagazineProperties then
+												local LoadedAmmo = MagazineProperties:FindFirstChild("LoadedAmmo")
+												if LoadedAmmo then
+													for _, Slot in pairs(LoadedAmmo:GetChildren()) do
+														local Amount = Slot:GetAttribute("Amount")
+														if tonumber(Amount) > 0 then
+															ammoString = ammoString .. Amount
+														end
+													end
+												end
+											end
+										end
+									end
+								end
+							end
+							if ammoString == "" and isGun == false then
+								self:AddText(Item.Name)
+							elseif ammoString == "" then
+								local HotbarDrawing = self:AddText(Item.Name .. " [OUT OF AMMO]")
+								local textBoundsX = HotbarDrawing.TextBounds.X
+								if textBoundsX > Maximal_X then
+									Maximal_X = textBoundsX
+								end
+								if Maximal_X > self.Size.X then
+									self.Size = Vector2.new(Maximal_X + 10, self.Main.Size.Y)
+									self.Main.Size = self.Size
+									MainText.Position = self.Main.Position + Vector2.new(self.Main.Size.X / 2, 0)
+								end
+							else
+								ammoString = ammoString:sub(0, ammoString:len() - 2)
+								local HotbarDrawing = self:AddText(Item.Name .. " ["..ammoString.."]")
+								local textBoundsX = HotbarDrawing.TextBounds.X
+								if textBoundsX > Maximal_X then
+									Maximal_X = textBoundsX
+								end
+								if Maximal_X > self.Size.X then
+									self.Size = Vector2.new(Maximal_X + 10, self.Main.Size.Y)
+									self.Main.Size = self.Size
+									MainText.Position = self.Main.Position + Vector2.new(self.Main.Size.X / 2, 0)
+								end
+							end
+						else
+							self:AddText(Item.Name)
+						end
+					end
+					self:AddText("", false, false)
+
+				elseif Name == "Clothing" then
+					for _, Clothing in pairs(v:GetChildren()) do
+						-- Clothing
+						local Attachments = Clothing:FindFirstChild("Attachments")
+						local attachmentString = ""
+						if Attachments then
+							for _, Slot in pairs(Attachments:GetChildren()) do
+								local Attachment = Slot:FindFirstChildOfClass("StringValue")
+								if Attachment then
+									attachmentString = attachmentString .. Attachment.Name .. "; "
+								end
+							end
+						end
+						attachmentString = attachmentString:sub(0, attachmentString:len() - 2)
+						if attachmentString == "" then
+							local ClothingDrawing = self:AddText(Clothing.Name)
+							ClothingDrawing.Color = settings.InventoryViewer.TextColor2
+						else
+							local ClothingDrawing = self:AddText(Clothing.Name .. " [".. attachmentString .."]")
+							ClothingDrawing.Color = settings.InventoryViewer.TextColor2
+							local textBoundsX = ClothingDrawing.TextBounds.X
+							if textBoundsX > Maximal_X then
+								Maximal_X = textBoundsX
+							end
+							if Maximal_X > self.Size.X then
+								self.Size = Vector2.new(Maximal_X + 10, self.Main.Size.Y)
+								self.Main.Size = self.Size
+								MainText.Position = self.Main.Position + Vector2.new(self.Main.Size.X / 2, 0)
+							end
+						end
+
+						-- Clothing Inventory
+						local Inventory = Clothing:FindFirstChild("Inventory")
+						if Inventory then
+							for _, Item in pairs(Inventory:GetChildren()) do
+								local ItemProperties = Item:FindFirstChild("ItemProperties")
+
+								if ItemProperties then
+									local Amount = ItemProperties:GetAttribute("Amount")
+									if Amount then
+										if Amount > 1 then
+											if Item.Name == "Rubles" then
+												local RublesDrawing = self:AddText(Item.Name .. " [" .. tostring(Amount) .. "]", true)
+												RublesDrawing.Color = settings.InventoryViewer.TextColorRuble
+											else
+												self:AddText(Item.Name .. " [" .. tostring(Amount) .. "]", true)
+											end
+										else
+											self:AddText(Item.Name, true)
+										end
+									else
+										self:AddText(Item.Name, true)
+									end
+								else
+									self:AddText(Item.Name, true)
+								end
+							end
+						end
+					end
+				end
+			end
+		else
+			local Inventory = Target:FindFirstChild("Inventory")
+			if Inventory then
+				for _, Item in pairs(Inventory:GetChildren()) do
+					local ItemProperties = Item:FindFirstChild("ItemProperties")
+					if ItemProperties then
+						local Amount = ItemProperties:GetAttribute("Amount")
+						if Amount then
+							if Amount > 1 then
+								self:AddText(Item.Name .. " [" .. tostring(Amount) .. "]")
+							else
+								self:AddText(Item.Name)
+							end
+						else
+							self:AddText(Item.Name)
+						end
+					else
+						self:AddText(Item.Name)
+					end
+				end
+			end
+		end
+	end
+
+	InventoryViewer.__index = InventoryViewer
+	local invViewer, canUpdate = nil, true
+
+	local InvViewer = Tabs["Visuals"]:AddRightGroupbox('Scanner')
+
+	InvViewer:AddToggle('InventoryViewerTog', {
+		Text = 'Inventory Viewer',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on Inventory Viewer.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v then
+				settings.InventoryViewer.Enabled = true
+
+				if invViewer ~= nil then
+					invViewer:Disconnect()
+				end
+
+				invViewer = dwRunService.Heartbeat:Connect(function()
+					if Running and dwCharacter.Humanoid.Health > 0 then
+						if not canUpdate then return end
+						canUpdate = false
+						InventoryViewer:Update()
+						wait(settings.InventoryViewer.UpdateRate)
+						canUpdate = true
+					end
+				end)
+				InventoryViewer.Main.Visible = true
+				InventoryViewer.Border.Visible = true
+			else
+				if invViewer ~= nil then
+					invViewer:Disconnect()
+				end
+				for i, v in pairs(InventoryViewer.Texts) do
+					v:Remove()
+					InventoryViewer.Texts[i] = nil
+					InventoryViewer.Main.Size = InventoryViewer.Size
+				end
+
+				InventoryViewer.Main.Visible = false
+				InventoryViewer.Border.Visible = false
+			end
+		end
+	})
+
+	InvViewer:AddSlider('ViewerUpdateRate', {
+		Text = 'Update Rate',
+		Default = 1,
+		Min = 0,
+		Max = 3,
+		Rounding = 1,
+		Compact = false,
+
+		Callback = function(Value)
+			settings.InventoryViewer.UpdateRate = Value
+		end
+	})
+
+	InvViewer:AddSlider('ViewerPosX', {
+		Text = 'Position X',
+		Default = 100,
+		Min = 0,
+		Max = dwCamera.ViewportSize.X - 300,
+		Rounding = 1,
+		Compact = false,
+
+		Callback = function(Value)
+			InventoryViewer.Main.Position = Vector2.new(Value, InventoryViewer.Main.Position.Y)
+			InventoryViewer.Border.Position = Vector2.new(Value, InventoryViewer.Border.Position.Y)
+		end
+	})
+
+	InvViewer:AddSlider('ViewerPosY', {
+		Text = 'Position Y',
+		Default = 100,
+		Min = 0,
+		Max = dwCamera.ViewportSize.Y - 300,
+		Rounding = 1,
+		Compact = false,
+
+		Callback = function(Value)
+			InventoryViewer.Main.Position = Vector2.new(InventoryViewer.Main.Position.X, Value)
+			InventoryViewer.Border.Position = Vector2.new(InventoryViewer.Border.Position.X, Value)
+		end
+	})
+
+	InvViewer:AddLabel('Clothing Text Color'):AddColorPicker('ColorPicker', {
+		Default = Color3.new(1, 1, 1), -- Bright green
+		Transparency = nil, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+
+		Callback = function(Value)
+			settings.InventoryViewer.TextColor2 = Value
+			InventoryViewer:Update()
+		end
+	})
+
+	InvViewer:AddLabel('Ruble Text Color'):AddColorPicker('ColorPicker', {
+		Default = Color3.new(0, 1, 0), -- Bright green
+		Transparency = nil, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+
+		Callback = function(Value)
+			settings.InventoryViewer.TextColorRuble = Value
+			InventoryViewer:Update()
+		end
+	})
+
+	InvViewer:AddLabel('Header Text Color'):AddColorPicker('ColorPicker', {
+		Default = Color3.new(0, 1, 0), -- Bright green
+		Transparency = nil, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+
+		Callback = function(Value)
+			settings.InventoryViewer.TextColorHeader = Value
+			InventoryViewer:Clear()
+		end
+	})
+
+	InvViewer:AddLabel('Item Text Color'):AddColorPicker('ColorPicker', {
+		Default = Color3.new(1, 1, 1), -- Bright green
+		Transparency = nil, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+
+		Callback = function(Value)
+			settings.InventoryViewer.TextColor1 = Value
+			InventoryViewer:Clear()
+		end
+	})
+
+	InvViewer:AddLabel('Background Color'):AddColorPicker('ColorPicker', {
+		Default = Color3.new(0.356863, 0.356863, 0.356863), -- Bright green
+		Transparency = nil, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+
+		Callback = function(Value)
+			InventoryViewer.Main.Color = Value
+		end
+	})
+
+	InvViewer:AddLabel('Border Color'):AddColorPicker('ColorPicker', {
+		Default = Color3.new(0.356863, 0.356863, 0.356863), -- Bright green
+		Transparency = nil, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+
+		Callback = function(Value)
+			InventoryViewer.Border.Color = Value
+		end
+	})
+end
+
+-- Misc Tab
+do
+	local MiscThing = Tabs["Misc"]:AddLeftGroupbox('Misc')
+
+	MiscThing:AddToggle('Fullbright', {
+		Text = 'Fullbright',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns on fullbright.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.FullBright = true
+			else
+				settings.FullBright = false
+			end
+		end
+	})
+
+	MiscThing:AddToggle('NoGrassTog', {
+		Text = 'No Grass',
+		Default = false, -- Default value (true / false)
+		Tooltip = 'Turns off grass.', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			sethiddenproperty(game:GetService("Workspace").Terrain, "Decoration", not v)
+		end
+	})
+
+	local AmbientLightning = MiscThing:AddToggle('AmbientLightning', {
+		Text = 'Ambient Lightning',
+		Default = false, -- Default value (true / false)
+		Tooltip = '...', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v then
+				settings.Lighting.AmbientColorToggle = true
+				lighting.Ambient = settings.Lighting.AmbientColor
+			else
+				settings.Lighting.AmbientColorToggle = false
+				lighting.Ambient = Old_Lighting.Ambient
+			end
+		end
+	})
+
+	AmbientLightning:AddColorPicker('ColorPicker', {
+		Default = Color3.new(1, 1, 1), -- Bright green
+		Transparency = nil, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+
+		Callback = function(Value)
+			if settings.Lighting.AmbientColorToggle then
+				settings.Lighting.AmbientColor = Value
+			end
+		end
+	})
+
+	MiscThing:AddToggle('AmbientSoundsTog', {
+		Text = 'No Ambient Sounds',
+		Default = false, -- Default value (true / false)
+		Tooltip = '...', -- Information shown when you hover over the toggle
+
+		Callback = function(bool)
+			for i, v in pairs(workspace.AmbientSounds:GetDescendants()) do
+				if v:IsA("Sound") then
+					if bool then
+						v.Volume = 0
+					else
+						v.Volume = 2
+					end
+				end
+			end
+		end
+	})
+
+	local VisorConnection
+	MiscThing:AddToggle('NoVisorTog', {
+		Text = 'No Visor',
+		Default = false, -- Default value (true / false)
+		Tooltip = '...', -- Information shown when you hover over the toggle
+
+		Callback = function(bool)
+			local MainGui = dwLocalPlayer.PlayerGui:FindFirstChild("MainGui")
+			if MainGui then
+				local MainFrame = MainGui:FindFirstChild("MainFrame")
+				if MainFrame then 
+					local ScreenEffects = MainFrame:FindFirstChild("ScreenEffects")
+					local Visor = ScreenEffects:FindFirstChild("Visor")
+					if Visor then
+						if bool then
+							Visor.Visible = false
+							VisorConnection = Visor:GetPropertyChangedSignal("Visible"):Connect(function()
+								if dwCharacter.Humanoid.Health > 0 then
+									if Visor.Visible and settings.Player.AntiVisor then
+										Visor.Visible = false
+									else
+										Visor.Visible = true
+									end
+								end
+							end)
+						else
+							Visor.Visible = true
+							if VisorConnection then
+								VisorConnection:Disconnect()
+							end
+						end
+					end
+				end
+			end
+		end
+	})
+
+	local atmosphere = lighting:FindFirstChildOfClass("Atmosphere")
+	if atmosphere then
+		MiscThing:AddToggle('AtmosphereTog', {
+			Text = 'No Atmosphere',
+			Default = false, -- Default value (true / false)
+			Tooltip = '...', -- Information shown when you hover over the toggle
+
+			Callback = function(bool)
+				if settings.FullBright then
+					atmosphere.Parent = bool and game.CoreGui or lighting
+				end
+			end
+		})
+	end
+
+	local Clouds = workspace.Terrain:FindFirstChildOfClass("Clouds")
+	if Clouds then
+		MiscThing:AddToggle('NoCloudsTog', {
+			Text = 'No Clouds',
+			Default = false, -- Default value (true / false)
+			Tooltip = '...', -- Information shown when you hover over the toggle
+
+			Callback = function(bool)
+				Clouds.Parent = bool and game.CoreGui or workspace.Terrain
+			end
+		})
+	end
+
+	local leafTable = {}
+	dwFoliage = workspace:FindFirstChild("SpawnerZones")
+	if dwFoliage then
+		_dwFoliage = workspace.SpawnerZones:FindFirstChild("Foliage")
+		if _dwFoliage then
+			MiscThing:AddToggle('NoFoliageTog', {
+				Text = 'No Foliage',
+				Default = false, -- Default value (true / false)
+				Tooltip = '...', -- Information shown when you hover over the toggle
+
+				Callback = function(bool)
+					if bool then
+						settings.Player.NoFoliage = true
+						for i, v in next, workspace.SpawnerZones.Foliage:GetDescendants() do
+							if v:IsA("MeshPart") and v.TextureID == "" then
+								leafTable[i] = {
+									Part = v,
+									Old = v.Parent
+								}
+								v.Parent = game.CoreGui
+							end
+						end
+					else
+						pcall(function()
+							settings.Player.NoFoliage = false
+							for i, v in pairs(leafTable) do
+								v.Part.Parent = v.Old
+							end
+							leafTable = {}
+						end)
+					end
+				end
+			})
+			workspace.SpawnerZones.Foliage.ChildAdded:Connect(function(child)
+				if settings.Player.NoFoliage and child:IsA("MeshPart") and child.TextureID == "" then
+					leafTable[#leafTable + 1] = {
+						Part = child,
+						Old = child.Parent
+					}
+					child.Parent = game.CoreGui
+				end
+			end)
+		end
+	end
+
+	MiscThing:AddDropdown('SkyboxEnabled', {
+		Values = {"Standard", "Among Us", "Neptune", "Aesthetic Night", "Redshift", "Galaxy", "Dark Clouds", "Space"},
+		Default = "Standard", -- number index of the value / string
+		Multi = false, -- true / false, allows multiple choices to be selected
+
+		Text = 'Skybox',
+		Tooltip = '...', -- Information shown when you hover over the dropdown
+
+		Callback = function(Value)
+			for Index, Asset in pairs(SkyBoxes[Value]) do
+				Sky[Index] = Asset
+			end
+		end
+	})
+end
+
+-- Player Misc
+do
+	local PlayerMisc = Tabs["Misc"]:AddRightGroupbox('Player')
+
+	PlayerMisc:AddToggle('WalkspeedTog', {
+		Text = 'Walkspeed',
+		Default = false, -- Default value (true / false)
+		Tooltip = '...', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.Player.WalkSpeedEnabled = true
+			else
+				settings.Player.WalkSpeedEnabled = false
+			end
+		end
+	})
+
+	PlayerMisc:AddToggle('HipHeightTog', {
+		Text = 'Hip Height',
+		Default = false, -- Default value (true / false)
+		Tooltip = '...', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.Player.HipHeightEnabled = true
+			else
+				settings.Player.HipHeightEnabled = false
+				dwCharacter.Humanoid.HipHeight = 2
+			end
+		end
+	})
+
+	PlayerMisc:AddToggle('BhopTog', {
+		Text = 'Bhop',
+		Default = false, -- Default value (true / false)
+		Tooltip = '...', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.Player.Bhop = true
+			else
+				settings.Player.Bhop = false
+			end
+		end
+	})
+
+	PlayerMisc:AddToggle('WaterWalkTog', {
+		Text = 'Water Walk',
+		Default = false, -- Default value (true / false)
+		Tooltip = '...', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.Player.WaterWalk = true
+			else
+				settings.Player.WaterWalk = false
+			end
+		end
+	})
+
+	PlayerMisc:AddToggle('DrownTog', {
+		Text = 'Anti Drown',
+		Default = false, -- Default value (true / false)
+		Tooltip = '...', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.Player.AntiDrown = true
+			else
+				settings.Player.AntiDrown = false
+			end
+		end
+	})
+
+	PlayerMisc:AddToggle('CFrameSpinTog', {
+		Text = 'CFrame Spin',
+		Default = false, -- Default value (true / false)
+		Tooltip = '...', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.Player.CFrameSpin = true
+			else
+				settings.Player.CFrameSpin = false
+			end
+		end
+	})
+
+	PlayerMisc:AddSlider('CFrameSpinSpeed', {
+		Text = 'Spin Speed',
+		Default = 1,
+		Min = 1,
+		Max = 30,
+		Rounding = 1,
+		Compact = false,
+
+		Callback = function(Value)
+			settings.Player.CFrameSpinSpeed = Value
+		end
+	})
+
+	PlayerMisc:AddSlider('WalkspeedValue', {
+		Text = 'Walkspeed Value',
+		Default = 16,
+		Min = 1,
+		Max = 37.5,
+		Rounding = 1,
+		Compact = false,
+
+		Callback = function(Value)
+			settings.Player.WalkSpeed = Value
+		end
+	})
+
+	PlayerMisc:AddSlider('HipHeightValue', {
+		Text = 'Hip Height Value',
+		Default = 2,
+		Min = 1,
+		Max = 5,
+		Rounding = 1,
+		Compact = false,
+
+		Callback = function(Value)
+			if settings.Player.HipHeightEnabled then
+				dwCharacter.Humanoid.HipHeight = Value
+				settings.Player.HipHeight = Value
+			end
+		end
+	})
+end
+
+-- Other Misc
+do
+	local OtherMisc = Tabs["Misc"]:AddLeftGroupbox('Player')
+
+	OtherMisc:AddLabel('Zoom Keybind'):AddKeyPicker('ZoomKeyPicker', {
+		Default = 'X',
+		SyncToggleState = false,
+
+		Mode = 'Toggle',
+
+		Text = 'Zoom',
+		NoUI = false,
+
+		Callback = function(Value)
+			if Value then
+				objectConnections.ZoomCon = dwRunService.Heartbeat:Connect(function()
+					dwCamera.FieldOfView = settings.Player.ZoomValue
+				end)
+			else
+				if not settings.Player.FOVToggle then
+					if objectConnections.ZoomCon then
+						objectConnections.ZoomCon:Disconnect()
+					end
+					dwCamera.FieldOfView = settings.Player.Old_FOV
+				else
+					if objectConnections.ZoomCon then
+						objectConnections.ZoomCon:Disconnect()
+					end
+					dwCamera.FieldOfView = settings.Player.Chosen_FOV
+				end
+			end
+		end,
+	})
+
+	OtherMisc:AddLabel('Freecam Keybind'):AddKeyPicker('FreecamKeyPicker', {
+		Default = 'Y',
+		SyncToggleState = false,
+
+		Mode = 'Toggle',
+
+		Text = 'Freecam',
+		NoUI = false,
+
+		Callback = function(Value)
+			if Value then
+				StartFreecam()
+			else
+				StopFreecam()
+			end
+		end,
+	})
+
+	OtherMisc:AddLabel('Third Person Keybind'):AddKeyPicker('ThirdPersonKeyPicker', {
+		Default = 'Z',
+		SyncToggleState = false,
+
+		Mode = 'Toggle',
+
+		Text = 'Third Person',
+		NoUI = false,
+
+		Callback = function(Value)
+			if Value then
+				settings.Player.ThirdPerson = true
+			else
+				settings.Player.ThirdPerson = false
+			end
+		end,
+	})
+
+	OtherMisc:AddToggle('FOVTog', {
+		Text = 'Field Of View',
+		Default = false, -- Default value (true / false)
+		Tooltip = '...', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.Player.FOVToggle = true
+			else
+				settings.Player.FOVToggle = false
+				dwCamera.FieldOfView = settings.Player.Old_FOV
+			end
+		end
+	})
+
+	OtherMisc:AddToggle('NoBobTog', {
+		Text = 'No Bob',
+		Default = false, -- Default value (true / false)
+		Tooltip = '...', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.Player.NoBob = true
+			else
+				settings.Player.NoBob = false
+			end
+		end
+	})
+
+	OtherMisc:AddToggle('LocalChamsTog', {
+		Text = 'Enable Chams',
+		Default = false, -- Default value (true / false)
+		Tooltip = '...', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.LocalChams.Enabled = true
+			else
+				settings.LocalChams.Enabled = false
+			end
+		end
+	})
+
+	OtherMisc:AddSlider('FovValue', {
+		Text = 'Field Of View',
+		Default = 90,
+		Min = 1,
+		Max = 120,
+		Rounding = 1,
+		Compact = false,
+
+		Callback = function(Value)
+			dwCamera.FieldOfView = Value
+			settings.Player.Chosen_FOV = Value
+		end
+	})
+
+	OtherMisc:AddSlider('ZoomValue', {
+		Text = 'Zoom FOV',
+		Default = 15,
+		Min = 1,
+		Max = 50,
+		Rounding = 1,
+		Compact = false,
+
+		Callback = function(Value)
+			settings.Player.ZoomValue = Value
+		end
+	})
+
+	OtherMisc:AddSlider('ThirdPersonSlider', {
+		Text = 'Third Person Distance',
+		Default = 7,
+		Min = 1,
+		Max = 50,
+		Rounding = 1,
+		Compact = false,
+
+		Callback = function(Value)
+			settings.Player.ThirdPersonDistance = Value
+		end
+	})
+
+	OtherMisc:AddDropdown('ArmChamsDropdown', {
+		Values = {"ForceField", "Neon", "SmoothPlastic", "Glass", "Foil"},
+		Default = 1, -- number index of the value / string
+		Multi = false, -- true / false, allows multiple choices to be selected
+
+		Text = 'Arm Chams Material',
+		Tooltip = '...', -- Information shown when you hover over the dropdown
+
+		Callback = function(Value)
+			settings.LocalChams.Material = Value
+		end
+	})
+
+	OtherMisc:AddDropdown('GunChamsDropdown', {
+		Values = {"ForceField", "Neon", "SmoothPlastic", "Glass", "Foil"},
+		Default = 1, -- number index of the value / string
+		Multi = false, -- true / false, allows multiple choices to be selected
+
+		Text = 'Gun Chams Material',
+		Tooltip = '...', -- Information shown when you hover over the dropdown
+
+		Callback = function(Value)
+			settings.LocalChams.GunChamsMaterial = Value
+		end
+	})
+
+	OtherMisc:AddLabel('Arm Chams Color'):AddColorPicker('ColorPicker', {
+		Default = Color3.new(1, 1, 1), -- Bright green
+		Transparency = nil, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+
+		Callback = function(Value)
+			settings.LocalChams.Color = Value
+		end
+	})
+
+	OtherMisc:AddLabel('Gun Chams Color'):AddColorPicker('ColorPicker', {
+		Default = Color3.new(1, 1, 1), -- Bright green
+		Transparency = nil, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+
+		Callback = function(Value)
+			settings.LocalChams.GunChamsColor = Value
+		end
+	})
+end
+
+-- Crosshair Misc
+do
+	local CrosshairMisc = Tabs["Misc"]:AddRightGroupbox('Crosshair Misc')
+
+	settings.Crosshair.Rainbow = false
+	settings.Crosshair.Nazi = false
+
+	local CrosshairTog = CrosshairMisc:AddToggle('CrosshairTog', {
+		Text = 'Enable Crosshair',
+		Default = false, -- Default value (true / false)
+		Tooltip = '...', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.Crosshair.Enabled = true
+			else
+				settings.Crosshair.Enabled = false
+			end
+		end
+	})
+
+	CrosshairTog:AddColorPicker('ColorPicker', {
+		Default = Color3.new(1, 1, 1), -- Bright green
+		Transparency = nil, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+
+		Callback = function(Value)
+			settings.Crosshair.Color = Value
+		end
+	})
+
+	CrosshairMisc:AddToggle('TheGapTog', {
+		Text = 'Divide Gap',
+		Default = false, -- Default value (true / false)
+		Tooltip = '...', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.Crosshair.TheGap = true
+			else
+				settings.Crosshair.TheGap = false
+			end
+		end
+	})
+
+	CrosshairMisc:AddToggle('CHOutlineTog', {
+		Text = 'Outline',
+		Default = false, -- Default value (true / false)
+		Tooltip = '...', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.Crosshair.Outline = true
+			else
+				settings.Crosshair.Outline = false
+			end
+		end
+	})
+
+	CrosshairMisc:AddToggle('ResizeAnim', {
+		Text = 'Resize Animation',
+		Default = false, -- Default value (true / false)
+		Tooltip = '...', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.Crosshair.Resize = true
+			else
+				settings.Crosshair.Resize = false
+			end
+		end
+	})
+
+	CrosshairMisc:AddToggle('EnableDot', {
+		Text = 'Dot',
+		Default = false, -- Default value (true / false)
+		Tooltip = '...', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.Crosshair.Dot = true
+			else
+				settings.Crosshair.Dot = false
+			end
+		end
+	})
+
+	CrosshairMisc:AddToggle('NaziCrosshair', {
+		Text = 'Nazi',
+		Default = false, -- Default value (true / false)
+		Tooltip = '...', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.Crosshair.Nazi = true
+			else
+				settings.Crosshair.Nazi = false
+			end
+		end
+	})
+
+	CrosshairMisc:AddToggle('RainbowCrosshair', {
+		Text = 'Rainbow',
+		Default = false, -- Default value (true / false)
+		Tooltip = '...', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.Crosshair.Rainbow = true
+			else
+				settings.Crosshair.Rainbow = false
+			end
+		end
+	})
+
+	local Logo = CrosshairMisc:AddToggle('CrosshairLogo', {
+		Text = 'Crosshair Logo',
+		Default = false, -- Default value (true / false)
+		Tooltip = '...', -- Information shown when you hover over the toggle
+
+		Callback = function(v)
+			if v == true then
+				settings.Crosshair.Logo = true
+			else
+				settings.Crosshair.Logo = false
+			end
+		end
+	})
+
+	Logo:AddColorPicker('ColorPicker', {
+		Default = Color3.new(1, 1, 1), -- Bright green
+		Transparency = nil, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+
+		Callback = function(Value)
+			settings.Crosshair.LogoColor = Value
+		end
+	})
+
+	CrosshairMisc:AddSlider('CrosshairSpeed', {
+		Text = 'Speed',
+		Default = 3,
+		Min = 0.1,
+		Max = 15,
+		Rounding = 1,
+		Compact = false,
+
+		Callback = function(Value)
+			settings.Crosshair.Speed = Value
+		end
+	})
+
+	CrosshairMisc:AddSlider('CrosshairRadius', {
+		Text = 'Radius',
+		Default = 25,
+		Min = 0.1,
+		Max = 100,
+		Rounding = 1,
+		Compact = false,
+
+		Callback = function(Value)
+			settings.Crosshair.Radius = Value
+		end
+	})
+
+	CrosshairMisc:AddSlider('CrosshairThickness', {
+		Text = 'Thickness',
+		Default = 1.5,
+		Min = 0.1,
+		Max = 10,
+		Rounding = 1,
+		Compact = false,
+
+		Callback = function(Value)
+			settings.Crosshair.Thickness = Value
+		end
+	})
+
+	CrosshairMisc:AddSlider('GapSize', {
+		Text = 'Gap',
+		Default = 5,
+		Min = 0,
+		Max = 50,
+		Rounding = 1,
+		Compact = false,
+
+		Callback = function(Value)
+			settings.Crosshair.Gap = Value
+		end
+	})
+
+	CrosshairMisc:AddSlider('LogoFadingOffset', {
+		Text = 'Logo Fade Offset',
+		Default = 0,
+		Min = 0,
+		Max = 5,
+		Rounding = 1,
+		Compact = false,
+
+		Callback = function(Value)
+			settings.Crosshair.LogoFadingOffset = Value
+		end
+	})
+
+	local utility = {}
+
+	-- // Functions
+	function utility:new(type, properties)
+		local object = Drawing.new(type)
+
+		for i, v in pairs(properties) do
+			object[i] = v
+		end
+		return object
+	end
+	-- // Initilisation
+	local lines = {}
+	-- // Drawings
+	local outline = utility:new("Square",{
+		Visible =  true,
+		Size = Vector2.new(4, 4),
+		Color = Color3.fromRGB(0, 0, 0),
+		Filled = true,
+		ZIndex = 1,
+		Transparency = 1
+	})
+	--
+	local dot = utility:new("Square",{
+		Visible =  true,
+		Size = Vector2.new(2, 2),
+		Color = settings.Crosshair.Color,
+		Filled = true,
+		ZIndex = 2,
+		Transparency = 1
+	})
+	--
+	local logotext = utility:new("Text", {
+		Visible = false,
+		Font = 2,
+		Size = 13,
+		Color = Color3.fromRGB(138, 128, 255),
+		ZIndex = 3,
+		Transparency = 1,
+		Text = "boron.cc",
+		Center = true,
+		Outline = true,
+	})
+	local text = utility:new("Text", {
+		Visible = false,
+		Font = 2,
+		Size = 13,
+		Color = Color3.new(1,1,1),
+		ZIndex = 3,
+		Transparency = 1,
+		Text = dwLocalPlayer.Name,
+		Center = true,
+		Outline = true,
+	})
+	--
+	for i=1 , 4 do
+		--
+		local line_outline = utility:new("Line",{
+			Visible =  true,
+			From = Vector2.new(200,500),
+			To = Vector2.new(200,500),
+			Color = Color3.fromRGB(0, 0, 0),
+			Thickness = settings.Crosshair.Thickness + 2.5,
+			ZIndex = 1,
+			Transparency = 1
+		})
+		--
+		local line = utility:new("Line",{
+			Visible =  true,
+			From = Vector2.new(200,500),
+			To = Vector2.new(200,500),
+			Color = settings.Crosshair.Color,
+			Thickness = settings.Crosshair.Thickness,
+			ZIndex = 2,
+			Transparency = 1
+		})
+
+		local naziline = utility:new("Line",{
+			Visible =  true,
+			From = Vector2.new(200,500),
+			To = Vector2.new(200,500),
+			Color = settings.Crosshair.Color,
+			Thickness = settings.Crosshair.Thickness,
+			ZIndex = 2,
+			Transparency = 1
+		})
+
+		lines[i] = {line, line_outline, naziline}
+	end
+	-- // Main
+	local angle = 0
+	local transp = 0
+	local reverse = false
+	local function setreverse(value)
+		if reverse ~= value then
+			reverse = value
+		end
+	end
+	--
+	local pos, rainbow, rotationdegree, color = Vector2.zero, 0, 0, Color3.new()
+	local math_cos, math_atan, math_pi, math_sin = math.cos, math.atan, math.pi, math.sin
+	local function DEG2RAD(x) return x * math_pi / 180 end
+	local function RAD2DEG(x) return x * 180 / math_pi end
+	dwRunService.RenderStepped:Connect(function(delta)
+		if settings.Crosshair.Enabled then
+			rainbow = rainbow + (delta * 0.5)
+			if rainbow > 1.0 then rainbow = 0.0 end
+			color = Color3.fromHSV(rainbow, 1, 1)
+			if settings.Crosshair.CustomPos then pos = settings.Crosshair.Position else pos = Vector2.new(game.Players.LocalPlayer:GetMouse().X, game.Players.LocalPlayer:GetMouse().Y + game:GetService("GuiService"):GetGuiInset().Y)end
+			if settings.Crosshair.Rainbow then color = Color3.fromHSV(rainbow, 1, 1) else color = settings.Crosshair.Color end
+			if transp <= 1.5+settings.Crosshair.LogoFadingOffset and not reverse then 
+				transp = transp +((settings.Crosshair.Speed * 10) * delta)
+				if transp >= 1.5+settings.Crosshair.LogoFadingOffset then setreverse(true) end
+			elseif reverse then
+				transp = transp - ((settings.Crosshair.Speed * 10) * delta)
+				if transp <= 0-settings.Crosshair.LogoFadingOffset then setreverse(false) end
+			end
+			logotext.Position = Vector2.new(pos.X, (pos + Vector2.new(0, settings.Crosshair.Radius + 5)).Y)
+			logotext.Transparency = transp
+			logotext.Visible = settings.Crosshair.Logo
+			logotext.Color = settings.Crosshair.LogoColor
+			--
+
+			if settings.Crosshair.Nazi then
+				local frametime = delta
+				local a = settings.Crosshair.Radius - 10
+				local gamma = math_atan(a / a)
+
+				if rotationdegree >= 90 then rotationdegree = 0 end
+
+				for i = 1, 4 do  
+					local p_0 = (a * math_sin(DEG2RAD(rotationdegree + (i * 90))))
+					local p_1 = (a * math_cos(DEG2RAD(rotationdegree + (i * 90))))
+					local p_2 =((a / math_cos(gamma)) * math_sin(DEG2RAD(rotationdegree + (i * 90) + RAD2DEG(gamma))))
+					local p_3 =((a / math_cos(gamma)) * math_cos(DEG2RAD(rotationdegree + (i * 90) + RAD2DEG(gamma))))
+
+
+					lines[i][1].From = Vector2.new(pos.X, pos.Y)
+					lines[i][1].To = Vector2.new(pos.X + p_0, pos.Y - p_1)
+					lines[i][1].Color = color
+					lines[i][1].Thickness = settings.Crosshair.Thickness
+					lines[i][1].Visible = true
+					lines[i][3].From = Vector2.new(pos.X + p_0, pos.Y - p_1)
+					lines[i][3].To = Vector2.new(pos.X + p_2, pos.Y - p_3)
+					lines[i][3].Color = color
+					lines[i][3].Thickness = settings.Crosshair.Thickness
+					lines[i][3].Visible = true
+				end
+				rotationdegree = rotationdegree + ((settings.Crosshair.Speed * frametime) * 1000) 
+			else
+				angle = angle + ((settings.Crosshair.Speed * 10) * delta)
+
+				if angle >= 90 then
+					angle = 0
+				end
+				--
+				dot.Visible = settings.Crosshair.Dot
+				dot.Color = color
+				dot.Position = Vector2.new(pos.X - 1, pos.Y - 1)
+				--
+				outline.Visible = settings.Crosshair.Outline and settings.Crosshair.Dot
+				outline.Position = Vector2.new(pos.X - 2, pos.Y - 2)
+				--
+
+				--
+				for index, line in pairs(lines) do
+					index = index
+					if settings.Crosshair.Resize then
+						x = {pos.X + (math.cos(angle + (index * (math.pi / 2))) * (settings.Crosshair.Radius + ((settings.Crosshair.Radius * math.sin(angle)) / 9))), pos.X + (math.cos(angle + (index * (math.pi / 2))) * ( (settings.Crosshair.Radius - 20) - (settings.Crosshair.TheGap and (((settings.Crosshair.Radius - 20) * math.cos(angle)) / 4) or (((settings.Crosshair.Radius - 20) * math.cos(angle)) - 4))))}
+						y = {pos.Y + (math.sin(angle + (index * (math.pi / 2))) * (settings.Crosshair.Radius + ((settings.Crosshair.Radius * math.sin(angle)) / 9))), pos.Y + (math.sin(angle + (index * (math.pi / 2))) * ( (settings.Crosshair.Radius - 20) - (settings.Crosshair.TheGap and (((settings.Crosshair.Radius - 20) * math.cos(angle)) / 4) or (((settings.Crosshair.Radius - 20) * math.cos(angle)) - 4))))}
+						x1 = {pos.X + (math.cos(angle + (index * (math.pi / 2))) * (settings.Crosshair.Radius+1)), pos.X + (math.cos(angle + (index * (math.pi / 2))) * ( ( settings.Crosshair.Radius - 20+1 ) - (settings.Crosshair.TheGap and((settings.Crosshair.Radius-20+1)/settings.Crosshair.Gap)or((settings.Crosshair.Radius-20+1)-settings.Crosshair.Gap)) ))}
+						y1 = {pos.Y + (math.sin(angle + (index * (math.pi / 2))) * (settings.Crosshair.Radius+1)), pos.Y + (math.sin(angle + (index * (math.pi / 2))) * ( ( settings.Crosshair.Radius - 20+1 ) - (settings.Crosshair.TheGap and((settings.Crosshair.Radius-20+1)/settings.Crosshair.Gap)or((settings.Crosshair.Radius-20+1)-settings.Crosshair.Gap)) ))}
+					else
+						x = {pos.X + (math.cos(angle + (index * (math.pi / 2))) * (settings.Crosshair.Radius)), pos.X + (math.cos(angle + (index * (math.pi / 2))) * ( ( settings.Crosshair.Radius - 20 ) - (settings.Crosshair.TheGap and((settings.Crosshair.Radius-20)/settings.Crosshair.Gap)or((settings.Crosshair.Radius-20)-settings.Crosshair.Gap)) ))}
+						y = {pos.Y + (math.sin(angle + (index * (math.pi / 2))) * (settings.Crosshair.Radius)), pos.Y + (math.sin(angle + (index * (math.pi / 2))) * ( ( settings.Crosshair.Radius - 20 ) - (settings.Crosshair.TheGap and((settings.Crosshair.Radius-20)/settings.Crosshair.Gap)or((settings.Crosshair.Radius-20)-settings.Crosshair.Gap)) ))}
+						x1 = {pos.X + (math.cos(angle + (index * (math.pi / 2))) * (settings.Crosshair.Radius+1)), pos.X + (math.cos(angle + (index * (math.pi / 2))) * ( ( settings.Crosshair.Radius - 20+1 ) - (settings.Crosshair.TheGap and((settings.Crosshair.Radius-20+1)/settings.Crosshair.Gap)or((settings.Crosshair.Radius-20+1)-settings.Crosshair.Gap)) ))}
+						y1 = {pos.Y + (math.sin(angle + (index * (math.pi / 2))) * (settings.Crosshair.Radius+1)), pos.Y + (math.sin(angle + (index * (math.pi / 2))) * ( ( settings.Crosshair.Radius - 20+1 ) - (settings.Crosshair.TheGap and((settings.Crosshair.Radius-20+1)/settings.Crosshair.Gap)or((settings.Crosshair.Radius-20+1)-settings.Crosshair.Gap)) ))}
+					end
+					--
+					line[1].Visible = true
+					line[1].Color = color
+					line[1].From = Vector2.new(x[2], y[2])
+					line[1].To = Vector2.new(x[1], y[1])
+					line[1].Thickness = settings.Crosshair.Thickness
+					--
+					line[2].Visible = settings.Crosshair.Outline
+					line[2].From = Vector2.new(x1[2], y1[2])
+					line[2].To = Vector2.new(x1[1], y1[1])
+					line[2].Thickness = settings.Crosshair.Thickness + 2.5
+
+					line[3].Visible = false
+				end
+			end
+		else
+			dot.Visible = false
+			outline.Visible = false
+			logotext.Visible = false
+			text.Visible = false
+			--
+			for index, line in pairs(lines) do
+				line[1].Visible = false
+				line[2].Visible = false
+				line[3].Visible = false
+			end
+		end
+	end)
+end
+
+-- Credits Tab
+do
+	local CreditsBox = Tabs["Credits"]:AddLeftGroupbox('Credits')
+
+	CreditsBox:AddLabel('Credits to tatar0071#0627 and tested#0021 for esp.')
+end
+
+local MenuGroup = Tabs['UI Settings']:AddLeftGroupbox('Menu')
+Library.KeybindFrame.Visible = true
+
+Library:OnUnload(function()
+	print('Unloaded!')
+	fovcircle:Destroy()
+	SnapLine:Destroy()
+end)
+
+local MenuGroup = Tabs['UI Settings']:AddLeftGroupbox('Menu')
+MenuGroup:AddButton('Unload', function() Library:Unload() end)
+MenuGroup:AddLabel('Menu bind'):AddKeyPicker('MenuKeybind', { Default = 'End', NoUI = true, Text = 'Menu keybind' })
+
+Library.ToggleKeybind = Options.MenuKeybind
+
+ThemeManager:SetLibrary(Library)
+SaveManager:SetLibrary(Library)
+
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({ 'MenuKeybind' })
+
+ThemeManager:SetFolder('boron.cc')
+SaveManager:SetFolder('boron.cc/ProjectDelta')
+
+SaveManager:BuildConfigSection(Tabs['UI Settings'])
+ThemeManager:ApplyToTab(Tabs['UI Settings'])
+
+SaveManager:LoadAutoloadConfig()
+
+
+local VFX = nil; for i,v in next, getgc(true) do
+	if typeof(v) == "table" and rawget(v, "RecoilCamera") then
+		VFX = v
+		break
+	end
+end
+
+local RecoilCamera = VFX.RecoilCamera;
+VFX.RecoilCamera = function(...)
+	if settings.NoRecoil then
+		return 0
+	else
+		return RecoilCamera(...)
+	end
+end
+
+local OriginalAutoRotate = dwLocalPlayer.Character and dwLocalPlayer.Character:FindFirstChildOfClass("Humanoid") and dwLocalPlayer.Character:FindFirstChildOfClass("Humanoid").AutoRotate or true
+
+local renderSteppedCon
+--Aimbot Code
+do
+	local spaceHolding = false
+	local shiftHolding = false
+	dwUIS.InputBegan:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton2 then
+			settings.Aiming = true
+		elseif i.KeyCode == Enum.KeyCode.Space then
+			spaceHolding = true
+		elseif i.KeyCode == Enum.KeyCode.LeftShift then
+			shiftHolding = true
+		end
+	end)
+
+	dwUIS.InputEnded:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton2 then
+			settings.Aiming = false
+		elseif i.KeyCode == Enum.KeyCode.Space then
+			spaceHolding = false
+		elseif i.KeyCode == Enum.KeyCode.LeftShift then
+			shiftHolding = false
+		end
+	end)
+
+	local updateTick = 0
+	renderSteppedCon = dwRunService.RenderStepped:Connect(function()
+		if dwCharacter.Humanoid.Health <= 0 then return end
+		GetClosestPlayer()
+		updateTick += 1
+
+		if updateTick >= 2 then
+			updateTick = 0
+
+			local humanoid = dwCharacter:FindFirstChildOfClass("Humanoid")
+			if humanoid then
+				if settings.Player.Bhop then
+					for _, connectTable in pairs({
+						getconnections(humanoid.StateChanged);
+						getconnections(humanoid:GetPropertyChangedSignal("JumpHeight"))
+						}) do
+						for _, event in pairs(connectTable) do
+							event:Disable()
+						end
+					end
+				end
+
+				if not settings.Player.Bhop then
+					for _, connectTable in pairs({
+						getconnections(humanoid.StateChanged);
+						getconnections(humanoid:GetPropertyChangedSignal("JumpHeight"))
+						}) do
+						for _, event in pairs(connectTable) do
+							event:Enable()
+						end
+					end
+				end
+
+				if settings.Player.WaterWalk then
+					local hitPart = workspace:Raycast(dwCharacter:FindFirstChild("HumanoidRootPart").Position, Vector3.new(0, -5, 0) + dwCharacter:FindFirstChild("HumanoidRootPart").CFrame.LookVector * 5, RaycastParams.new())
+					if hitPart and hitPart.Material == Enum.Material.Water then
+						local clone = Instance.new("Part")
+						clone.Parent = workspace
+						clone.Position = hitPart.Position
+						clone.Anchored = true
+						clone.BrickColor = BrickColor.new("Baby blue")
+						clone.Transparency = 1
+						game.Debris:AddItem(clone, 1)
+					end
+				end
+			end
+
+			if settings.Snaplines then
+				if settings.LockedTo ~= nil then
+					local player = settings.LockedTo
+
+					if not settings.AiLockedTo then
+						player = settings.LockedTo.Character
+					end
+
+					local Vector, OnScreen = dwCamera:WorldToViewportPoint(player[settings.Aimbot_AimPart].Position)
+					if OnScreen then
+						SnapLine.Visible = true
+						SnapLine.Color = settings.SnaplineColor
+						SnapLine.From = Vector2.new(dwUIS:GetMouseLocation().X, dwUIS:GetMouseLocation().Y)
+						SnapLine.To = Vector2.new(Vector.X, Vector.Y)
+						SnapLine.Thickness = 1
+					else
+						SnapLine.Visible = false
+					end
+				else
+					SnapLine.Visible = false
+				end
+			else
+				SnapLine.Visible = false
+			end
+
+			if not settings.SilentAim and settings.Aimbot and settings.Aiming then
+				if settings.LockedTo ~= nil then
+					local Prediction = Vector3.new(0, 0, 0)
+					local player = settings.LockedTo
+
+					if not settings.AiLockedTo then
+						player = settings.LockedTo.Character
+					end
+
+					local head = player:FindFirstChild(settings.Aimbot_AimPart).Position
+					Prediction = PredictCFrame(player, head, Prediction, getBulletAttribute("MuzzleVelocity"))
+
+
+					if settings.Aimbot_Sensitivity > 0 then
+						local Animation = dwTweenService:Create(dwCamera, TweenInfo.new(settings.Aimbot_Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = CFrame.new(dwCamera.CFrame.Position, player[settings.Aimbot_AimPart].Position + Prediction)})
+						Animation:Play()
+					else
+						dwCamera.CFrame = CFrame.new(dwCamera.CFrame.Position, player[settings.Aimbot_AimPart].Position + Prediction)
+					end
+				end
+			end
+
+			local SelfCharacter = dwLocalPlayer.Character
+			local SelfRootPart, SelfHumanoid = SelfCharacter and SelfCharacter:FindFirstChild("HumanoidRootPart"), SelfCharacter and SelfCharacter:FindFirstChildOfClass("Humanoid")
+			if (SelfCharacter and SelfRootPart and SelfHumanoid) and settings.Player.CFrameSpin then
+				SelfHumanoid.AutoRotate = false
+				local Angle do
+					Angle = -math.atan2(dwCamera.CFrame.LookVector.Z, dwCamera.CFrame.LookVector.X) + tick() * settings.Player.CFrameSpinSpeed % 360
+				end
+				local NewAngle = CFrame.new(SelfRootPart.Position) * CFrame.Angles(0, Angle, 0)
+				local function ToYRotation(_CFrame)
+					local _, Y, _ = _CFrame:ToOrientation()
+					return CFrame.new(_CFrame.Position) * CFrame.Angles(0, Y, 0)
+				end
+				local Angle2 = ToYRotation(NewAngle)
+				SelfRootPart.CFrame = Angle2
+			elseif (SelfCharacter and SelfRootPart and SelfHumanoid) and not settings.Player.CFrameSpin then
+				SelfHumanoid.AutoRotate = OriginalAutoRotate
+			end
+
+			local dwViewModel = dwCamera:FindFirstChild("ViewModel")
+			if settings.LocalChams.Enabled and dwViewModel ~= nil then
+				for i,v in pairs(dwCamera.ViewModel:GetDescendants()) do
+					if v.ClassName == "MeshPart" then
+						if v.Parent.Name == "WastelandShirt" or v.Parent.Name == "GhillieTorso" or v.Parent.Name == "CivilianPants" or v.Parent.Name == "CamoShirt" or v.Parent.Name == "HandWraps" or v.Parent.Name == "CombatGloves" then
+							v.Transparency = 1
+						end
+					end
+					if v.ClassName == "MeshPart" then
+						if v.Name == "LeftHand" or v.Name == "LeftLowerArm" or v.Name == "LeftUpperArm" or v.Name == "RightHand" or v.Name == "RightLowerArm" or v.Name == "RightUpperArm" then
+							v.Material = (settings.LocalChams.Material)
+							v.Color = (settings.LocalChams.Color)
+
+							if tostring(settings.LocalChams.Material) == "ForceField" then
+								v.TextureID = "rbxassetid://5101923607"
+							else
+								v.TextureID = ""
+							end
+						end
+					end
+				end
+				for i,v in pairs(dwCamera.ViewModel.Item:GetDescendants()) do
+					if v.ClassName == "Part" then
+						v.Material = (settings.LocalChams.GunChamsMaterial)
+						v.Color = (settings.LocalChams.GunChamsColor)
+					end
+					if v.ClassName == "MeshPart" then
+						v.Material = (settings.LocalChams.GunChamsMaterial)
+						v.Color = (settings.LocalChams.GunChamsColor)
+
+						if tostring(settings.LocalChams.GunChamsMaterial) == "ForceField" then
+							v.TextureID = "rbxassetid://5101923607"
+						else
+							v.TextureID = ""
+						end
+					end
+					if v:FindFirstChild("SurfaceAppearance") then
+						v.SurfaceAppearance:Destroy()
+					end
+				end
+			end
+			
+			if settings.AutoShoot then
+				if settings.LockedTo or settings.LockedTo ~= nil then
+					mouse1press() wait() mouse1release()
+				end
+			end
+		elseif updateTick == 1 then
+			if settings.HitSounds then
+				if ShouldPlayHitSound then
+					local Hit = HitSoundHitTarget
+					if Hit.Name:lower():find("head") then
+						headSound:Play()
+					else
+						bodySound:Play()
+					end
+					ShouldPlayHitSound = false
+				end
+			end
+		end
+	end)
+end
+
+--Silent Aimbot Code
+do
+	local ExpectedArguments = {
+		FindPartOnRayWithIgnoreList = {
+			ArgCountRequired = 3,
+			Args = {
+				"Instance", "Ray", "table", "boolean", "boolean"
+			}
+		},
+		FindPartOnRayWithWhitelist = {
+			ArgCountRequired = 3,
+			Args = {
+				"Instance", "Ray", "table", "boolean"
+			}
+		},
+		FindPartOnRay = {
+			ArgCountRequired = 2,
+			Args = {
+				"Instance", "Ray", "Instance", "boolean", "boolean"
+			}
+		},
+		Raycast = {
+			ArgCountRequired = 3,
+			Args = {
+				"Instance", "Vector3", "Vector3", "RaycastParams"
+			}
+		}
+	}
+	local function getDirection(Origin, Position)
+		return (Position - Origin).Unit * (Origin - Position).Magnitude
+	end
+	local function ValidateArguments(Args, RayMethod)
+		local Matches = 0
+		if #Args < RayMethod.ArgCountRequired then
+			return false
+		end
+		for Pos, Argument in next, Args do
+			if typeof(Argument) == RayMethod.Args[Pos] then
+				Matches = Matches + 1
+			end
+		end
+		return Matches >= RayMethod.ArgCountRequired
+	end
+	local oldNamecall
+	oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(...)
+		local Method = getnamecallmethod()
+		local Arguments = {...}
+		local self = Arguments[1]
+		if settings.SilentAim and self == workspace and not checkcaller() and Method == "Raycast" and settings.LockedTo or settings.LockedTo ~= nil and settings.SilentAim and settings.InstantBullet then
+			if ValidateArguments(Arguments, ExpectedArguments.Raycast) then
+				local A_Origin = Arguments[2]
+				if not settings.SilentAim then return end
+				
+				
+				local HitPart
+				if settings.AiLockedTo then
+					HitPart = settings.LockedTo[settings.Aimbot_AimPart]
+				else
+					HitPart = settings.LockedTo.Character[settings.Aimbot_AimPart]
+				end
+				
+				if HitPart and settings.SilentAim == true then
+					local LOL1, LOL2, LOL3 = HitPart.Position.X, HitPart.Position.Y, HitPart.Position.Z
+					Arguments[3] = getDirection(A_Origin, Vector3.new(LOL1 + (math.random(1,9999) / 10000000 - math.random(1,9999) / 10000000), LOL2 + (math.random(1,9999) / 10000000 - math.random(1,9999) / 100000000), LOL3 + (math.random(1,9999) / 100000000 - math.random(1,9999) / 100000000)))
+					return oldNamecall(unpack(Arguments))
+				end
+			end
+		end
+		return oldNamecall(...)
+	end))
+	
+	local oldSilentHook = nil	
+	oldSilentHook = hookfunction(require(dwRepStorage.Modules.FPS.Bullet).CreateBullet, function(...)
+		local args = {...}
+
+		if settings.SilentAim and settings.LockedTo ~= nil and not settings.InstantBullet then
+			local head = nil
+			local Part = nil
+			local Prediction = Vector3.new(0, 0, 0)
+
+			if settings.AiLockedTo then
+				head = settings.LockedTo:FindFirstChild(settings.Aimbot_AimPart).Position
+				Part = settings.LockedTo:FindFirstChild(settings.Aimbot_AimPart)
+				Prediction = PredictCFrame(settings.LockedTo, head, Prediction, getBulletAttribute("MuzzleVelocity"))
+			else
+				head = settings.LockedTo.Character:FindFirstChild(settings.Aimbot_AimPart).Position
+				Part = settings.LockedTo.Character:FindFirstChild(settings.Aimbot_AimPart)
+				Prediction = PredictCFrame(settings.LockedTo.Character, head, Prediction, getBulletAttribute("MuzzleVelocity"))
+			end
+
+			if head ~= nil then
+				args[9] = {CFrame = CFrame.lookAt(
+					dwCharacter.HumanoidRootPart.Position + Vector3.new(
+						0, UniversalTables.UniversalTable.GameSettings.RootScanHeight, 0
+					),
+					head + Prediction + Vector3.new(0, predictDrop(Part, getBulletAttribute("MuzzleVelocity"), getBulletAttribute("ProjectileDrop")), 0)
+					)}
+			end
+		end
+
+		return oldSilentHook(table.unpack(args))
+	end)
+end
+
+__newindex = hookmetamethod(game, "__newindex", function(i, v, n_v)
+	if not Running then return __newindex(i, v, n_v) end
+
+	if i == dwCamera and v == "CFrame" then
+		if settings.Player.ThirdPerson then
+			return __newindex(i, v, n_v + dwCamera.CFrame.LookVector * - settings.Player.ThirdPersonDistance)
+		end
+		if settings.Player.NoBob then
+			local Script = getcallingscript()
+			if tostring(Script) == "CharacterController" then
+				return __newindex(i, v, dwCamera.CFrame)
+			end
+		end
+	end
+
+	return __newindex(i, v, n_v)
+end)
+
+local namecall
+namecall = hookmetamethod(game, "__namecall", function(self, ...)
+	local args = {...}
+
+	if getnamecallmethod() == "FireServer" and tostring(self) == "Drowning" then
+		if settings.Player.AntiDrown then
+			return
+		end
+	end
+
+	if getnamecallmethod() == "GetAttribute" then	
+		if settings.NoSpread then
+			if args[1] == "AccuracyDeviation" then
+				return false
+			end
+		end
+
+		if settings.NoTracer then
+			if args[1] == "Tracer" then
+				return false
+			end
+		end
+	end
+	
+	if tostring(self) == "ProjectileInflict" and getnamecallmethod() == "FireServer" then
+		if args[1] == dwCharacter.PrimaryPart then
+			return
+		end
+	end
+
+	if tostring(self) == "ProjectileInflict" then
+		if args[2] then
+
+			task.spawn(function()
+				if settings.HitSounds then
+					ShouldPlayHitSound = true
+					HitSoundHitTarget = args[1]
+				end
+			end)
+
+			task.spawn(function()
+				if settings.HitMarkers then
+					local HitPos = args[1].Position
+					local Vector, onScreen = dwCamera:WorldToViewportPoint(HitPos)
+
+
+					local Finished = false
+
+					local Line1 = Drawing.new("Line")
+					local Line2 = Drawing.new("Line")
+					local Line3 = Drawing.new("Line")
+					local Line4 = Drawing.new("Line")
+
+					Line1.Visible = onScreen
+					Line2.Visible = onScreen
+					Line3.Visible = onScreen
+					Line4.Visible = onScreen
+
+					Line1.Thickness = 2
+					Line2.Thickness = 2
+					Line3.Thickness = 2
+					Line4.Thickness = 2
+
+					Line1.Color = settings.HitMarkerColor
+					Line2.Color = settings.HitMarkerColor
+					Line3.Color = settings.HitMarkerColor
+					Line4.Color = settings.HitMarkerColor
+
+					Line1.Transparency = 1
+					Line2.Transparency = 1
+					Line3.Transparency = 1
+					Line4.Transparency = 1
+
+					Line1.From = Vector2.new(Vector.X - 10, Vector.Y - 10)
+					Line1.To = Vector2.new(Vector.X - 5, Vector.Y - 5)
+
+					Line2.From = Vector2.new(Vector.X + 10, Vector.Y - 10)
+					Line2.To = Vector2.new(Vector.X + 5, Vector.Y - 5)
+
+					Line3.From = Vector2.new(Vector.X - 10, Vector.Y + 10)
+					Line3.To = Vector2.new(Vector.X - 5, Vector.Y + 5)
+
+					Line4.From = Vector2.new(Vector.X + 10, Vector.Y + 10)
+					Line4.To = Vector2.new(Vector.X + 5, Vector.Y + 5)
+
+					local c; c = game:GetService("RunService").RenderStepped:Connect(function()
+						if dwCharacter.Humanoid.Health > 0 then
+							if not Finished then
+								local Vector, onScreen = dwCamera:WorldToViewportPoint(HitPos)
+
+								Line1.Visible = onScreen
+								Line2.Visible = onScreen
+								Line3.Visible = onScreen
+								Line4.Visible = onScreen
+
+								Line1.From = Vector2.new(Vector.X - 10, Vector.Y - 10)
+								Line1.To = Vector2.new(Vector.X - 5, Vector.Y - 5)
+
+								Line2.From = Vector2.new(Vector.X + 10, Vector.Y - 10)
+								Line2.To = Vector2.new(Vector.X + 5, Vector.Y - 5)
+
+								Line3.From = Vector2.new(Vector.X - 10, Vector.Y + 10)
+								Line3.To = Vector2.new(Vector.X - 5, Vector.Y + 5)
+
+								Line4.From = Vector2.new(Vector.X + 10, Vector.Y + 10)
+								Line4.To = Vector2.new(Vector.X + 5, Vector.Y + 5)
+							else
+								c:Disconnect()
+							end
+						end
+					end)
+
+					wait(settings.HitMarkerDuration)
+					while Line1.Transparency > 0 do
+						Line1.Transparency = Line1.Transparency - 0.05
+						Line2.Transparency = Line2.Transparency - 0.05
+						Line3.Transparency = Line3.Transparency - 0.05
+						Line4.Transparency = Line4.Transparency - 0.05
+						wait(0.03)
+					end
+
+					Finished = true
+					Line1:Remove()
+					Line2:Remove()
+					Line3:Remove()
+					Line4:Remove()
+				end
+			end)
+
+			task.spawn(function()
+				if settings.BulletLines then
+					local HitPos = args[1].Position
+					local Vector, onScreen = dwCamera:WorldToViewportPoint(HitPos)
+					local Finished = false
+
+					local Part = Instance.new("Part")
+					Part.CanCollide = false
+					Part.Anchored = true
+					Part.Parent = workspace
+
+					local Attachment = Instance.new("Attachment")
+					Attachment.Position = dwCharacter.Head.Position 
+					Attachment.Parent = Part
+					Attachment.Visible = false
+
+					local Attachment2 = Instance.new("Attachment")
+					Attachment2.Position = HitPos
+					Attachment2.Parent = Part
+					Attachment2.Visible = false
+
+					local BulletLine = Instance.new("Beam")
+					BulletLine.Enabled = onScreen
+					BulletLine.Brightness = 10
+					BulletLine.LightInfluence = 0.75
+					BulletLine.LightEmission = 0.1
+					BulletLine.Attachment0 = Attachment
+					BulletLine.Attachment1 = Attachment2
+					BulletLine.Texture = "rbxassetid://7216850022"
+					BulletLine.TextureLength = 7
+					BulletLine.TextureMode = "Stretch"
+					BulletLine.TextureSpeed = 6.21
+					BulletLine.Color = ColorSequence.new(settings.BulletLineColor)
+					BulletLine.Transparency = NumberSequence.new(0)
+					BulletLine.Parent = Part
+					BulletLine.CurveSize0 = 0
+					BulletLine.CurveSize1 = 0
+					BulletLine.FaceCamera = true
+					BulletLine.Segments = 10
+					BulletLine.Width0 = 2
+					BulletLine.Width1 = 2
+					BulletLine.ZOffset = 0
+
+					local c; c = game:GetService("RunService").RenderStepped:Connect(function()
+						if dwCharacter.Humanoid.Health > 0 then
+							if not Finished then
+								BulletLine.Enabled = onScreen
+							else
+								c:Disconnect()
+							end
+						end
+					end)
+
+					if not Finished then
+						wait(settings.BulletLineDelay)
+						Finished = true
+						Part:Destroy()
+					end
+				end
+			end)
+		end
+	end
+
+	return namecall(self, unpack(args))
+end)
+
+local gmt = getrawmetatable(game)
+setreadonly(gmt, false)
+local oldindex = gmt.__index
+gmt.__index = newcclosure(function(self,b)
+	if b == "HipHeight" and settings.Player.HipHeightEnabled then
+		dwCharacter.Humanoid.HipHeight = settings.Player.HipHeight
+		return 2
+	end
+	if b == "WalkSpeed" and settings.Player.WalkSpeedEnabled  then
+		dwCharacter.Humanoid.WalkSpeed = settings.Player.WalkSpeed
+		return 16
+	end
+
+	return oldindex(self, b)
+end)
+
+spawn(function()
+	dwRS.Heartbeat:Connect(function()
+		if settings.FullBright then
+			lighting.Brightness = 1
+			lighting.FogEnd = 1e10
+			lighting.ClockTime = 12
+			for i, v in pairs(lighting:GetDescendants()) do
+				if v:IsA("BloomEffect") or v:IsA("BlurEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("SunRaysEffect") then
+					v.Enabled = false
+				end
+			end
+		end
+	end)
+end)
